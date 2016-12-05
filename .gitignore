@@ -1,3 +1,16 @@
+# Created by .ignore support plugin (hsz.mobi)
+### Vim template
+# swap
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+# session
+Session.vim
+# temporary
+.netrwhist
+*~
+# auto-generated tag files
+tags
+### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -61,7 +74,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+doc/build/
+doc/source/modules/
 
 # PyBuilder
 target/
@@ -87,3 +101,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Pycharm
+### Manually added
+.idea
