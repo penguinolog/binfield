@@ -66,9 +66,9 @@ def _mapping_filter(item):
     # Process nested
     return all(
         functools.reduce(
-            lambda coll, value: coll + [_mapping_filter(value)],
+            lambda coll, value: coll.add(_mapping_filter(value)),
             val.items(),
-            []
+            set()
         )
     )
 
@@ -128,15 +128,11 @@ class BitFieldMeta(type):
             for key in mapping:
                 del classdict[key]  # drop
 
-            garbage = {}
+            garbage = {
+                key: val for key, val in classdict.items()
+                if not (_is_dunder(key) or _is_descriptor(val))
+            }
 
-            for key, val in filter(
-                lambda item: not (
-                    _is_dunder(item[0]) or _is_descriptor(item[1])
-                ),
-                classdict.items()
-            ):
-                garbage[key] = val
             if garbage:
                 raise TypeError(
                     'Several data is not recognized in class structure: '
