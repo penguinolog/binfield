@@ -78,18 +78,30 @@ class BaseFunctionality(unittest.TestCase):
         self.assertIsInstance(bf[[0, 2]], BitField)
         self.assertEqual(bf[[0, 2]]._bit_length, 2)
 
+        bf[0] = 1
+        self.assertEqual(bf[0], 1)
+
+        bf[1: 3] = 3
+        self.assertEqual(bf[1: 3], 3)
+
     def test_positive_mapped_no_len(self):
         class MappedBitField(BitField):
             test_index = 0
             test_slc = slice(1, 3)
             test_list_slc = [3, 5]
 
-        bf = MappedBitField(7)
+        mbf = MappedBitField(7)
 
-        self.assertEqual(bf['test_index'], bf[0])
-        self.assertEqual(bf['test_slc'], bf[1: 3])
-        self.assertEqual(bf['test_list_slc'], bf[3: 5])
+        self.assertEqual(mbf['test_index'], mbf[0])
+        self.assertEqual(mbf['test_slc'], mbf[1: 3])
+        self.assertEqual(mbf['test_list_slc'], mbf[3: 5])
 
-        self.assertEqual(bf.test_index, bf[0])
-        self.assertEqual(bf.test_slc, bf[1: 3])
-        self.assertEqual(bf.test_list_slc, bf[3: 5])
+        self.assertEqual(mbf.test_index, mbf[0])
+        self.assertEqual(mbf.test_slc, mbf[1: 3])
+        self.assertEqual(mbf.test_list_slc, mbf[3: 5])
+
+        mbf['test_index'] = 0
+        self.assertEqual(mbf['test_index'], 0)
+
+        mbf['test_slc'] = 0
+        self.assertEqual(mbf['test_slc'], 0)

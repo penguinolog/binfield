@@ -179,7 +179,7 @@ def _compare_idx(src):
     """Internal method for usage in repr. Moved from class implementation."""
     if isinstance(src[1], int):
         return src[1]
-    if isinstance(src[1], tuple):
+    if isinstance(src[1], (tuple, list)):
         return src[1][0]
     if isinstance(src[1], slice):
         return src[1].start
@@ -402,7 +402,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 mapping=mapping,
                 length=stop - item.start
             )
-            return cls(data_block, _parent=(self, item))
+            return cls(data_block >> item.start, _parent=(self, item))
 
         cls = BitFieldMeta.makecls(
             name=name,
@@ -452,8 +452,11 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 'BitField value could be set only as int or the same class'
             )
 
-        mask = int(self) ^ int(self.__getitem__(key))
+        old_val = int(self.__getitem__(key))
+
         if isinstance(key, int):
+            mask = int(self) ^ (old_val << key)
+
             if value.bit_length() > 1:
                 raise ValueError(
                     'Single bit could be changed only by another single bit'
@@ -466,6 +469,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             return
 
         if isinstance(key, slice):
+            mask = int(self) ^ old_val
             if key.step:
                 raise IndexError(
                     'Step is not supported for slices in BitField'
@@ -478,6 +482,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 )
 
             if key.start:
+                mask = int(self) ^ (old_val << key.start)
                 if key.start > key.stop:
                     raise IndexError(
                         'Start index could not be greater, then stop index: '
@@ -554,7 +559,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         return (
             '{data}<'.format(data=int(self)) +
-            self.__extract_string() +
+            self._extract_string() +
             ' (0x{data:0{length}X})>'.format(
                 data=int(self),
                 length=len(self) * 2,
@@ -568,6 +573,12 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 x=int(self),
                 len=len(self) * 2,
             ))
+
+    def __dir__(self):
+        return (
+            list(self.__mapping.keys()) +
+            ['_bit_length', '_value', '_mapping']
+        )
 
 
 __all__ = ['BitField']
