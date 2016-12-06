@@ -236,17 +236,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         """
         return self.__value.to_bytes(length, byteorder, *args, **kwargs)
 
-    def _change_byteorder(self, old_order, new_order):
-        """Change internal byteorder"""
-        if len(self) > 1:
-            self.__value = int.from_bytes(
-                self._to_bytes(
-                    len(self),
-                    byteorder=old_order
-                ),
-                byteorder=new_order
-            )
-
     @property
     def _value(self):
         return self.__value
