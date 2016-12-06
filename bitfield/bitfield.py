@@ -115,8 +115,12 @@ class BitFieldMeta(type):
             raise ValueError(
                 '_slc is reserved index for slicing nested BitFields'
             )
-        for m_key, m_val in filter(_mapping_filter, classdict.items()):
+        for m_key, m_val in filter(
+            _mapping_filter,
+            classdict.copy().items()
+        ):
             mapping[m_key] = m_val
+            del classdict[m_key]  # drop
 
         if _mangle(name, 'length') in classdict:
             length = classdict[_mangle(name, 'length')]
@@ -124,29 +128,23 @@ class BitFieldMeta(type):
         else:
             length = None
 
+        garbage = {
+            key: val for key, val in classdict.items()
+            if not (_is_dunder(key) or _is_descriptor(val))
+        }
+
+        if garbage:
+            raise TypeError(
+                'Several data is not recognized in class structure: '
+                '{!r}'.format(garbage)
+            )
+
         if mapping:
-            for key in mapping:
-                del classdict[key]  # drop
-
-            garbage = {
-                key: val for key, val in classdict.items()
-                if not (_is_dunder(key) or _is_descriptor(val))
-            }
-
-            if garbage:
-                raise TypeError(
-                    'Several data is not recognized in class structure: '
-                    '{!r}'.format(garbage)
-                )
-
             classdict[_mangle('BitField', 'mapping')] = mapping
         else:
             classdict[_mangle('BitField', 'mapping')] = None
 
-        if _mangle(name, 'length') in classdict:
-            classdict[_mangle('BitField', 'length')] = length
-        else:
-            classdict[_mangle('BitField', 'length')] = None
+        classdict[_mangle('BitField', 'length')] = length
 
         return super(BitFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
@@ -167,6 +165,7 @@ class BitFieldMeta(type):
             classdict[_mangle(name, 'length')] = length
         else:
             classdict = {}
+            classdict[_mangle(name, 'length')] = length
         return mcs.__new__(mcs, name, (BitField, ), classdict)
 
 
@@ -195,6 +194,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     """Bitfield representation"""
     __slots__ = ['__value', '__parent_obj', '__parent_slc']
 
+    # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
         """Creates new BitField object from integer value
 
@@ -207,7 +207,10 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         self.__value = x if isinstance(x, int) else int(x, base=base)
         if _parent:
             self.__parent_obj, self.__parent_slc = _parent
-        super(self.__class__, self).__init__()
+        else:
+            self.__parent_obj = self.__parent_slc = None
+
+    # pylint: enable=super-init-not-called
 
     @property
     def _bit_length(self):
@@ -223,22 +226,13 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         length = int(math.ceil(self._bit_length / 8.))
         return length if length != 0 else 1
 
-    def _to_bytes(self, length, byteorder, *args, **kwargs):
-        """Convert self to bytes
-
-        :type length: int
-        :type byteorder: str
-        :rtype: bytes
-        """
-        return self.__value.to_bytes(length, byteorder, *args, **kwargs)
-
     @property
     def _value(self):
         return self.__value
 
     @_value.setter
     def _value(self, new_value):
-        if self.__parent_obj:
+        if self.__parent_obj is not None:
             self.__parent_obj[self.__parent_slc] = new_value
         self.__value = new_value
 
@@ -294,12 +288,15 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     # Modify Bitwise operations
     def __iand__(self, other):
         self._value &= int(other)
+        return self
 
     def __ior__(self, other):
         self._value |= int(other)
+        return self
 
     def __ixor__(self, other):
         self._value ^= int(other)
+        return self
 
     # Non modify operations: new BitField will re-use _mapping
     # pylint: disable=no-value-for-parameter
@@ -320,28 +317,21 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             raise OverflowError(
                 'Result value {} not fill in '
                 'data length ({} bits)'.format(res, self.__length))
-        self.__value = res
-
-    def __isub__(self, other):
-        res = int(self) - int(other)
         if res < 0:
             raise ValueError(
-                'BitField could not be negative! Value {} is bigger, '
-                'than {}'.format(other, int(self))
+                'BitField could not be negative!'
             )
         self.__value = res
+        return self
+
+    def __isub__(self, other):
+        return self.__iadd__(-other)
 
     # Integer non-modify operations. New object is bitfield, if not overflow
     # new BitField will re-use _mapping
     # pylint: disable=no-value-for-parameter
     def __add__(self, other):
         res = int(self) + int(other)
-        if self.__length and self.__length < res.bit_length():
-            return res
-        return self.__class__(res)
-
-    def __sub__(self, other):
-        res = int(self) - int(other)
         if res < 0:
             raise ValueError(
                 'BitField could not be negative! '
@@ -349,7 +339,12 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                     other, int(self)
                 )
             )
+        if self.__length and self.__length < res.bit_length():
+            return res
         return self.__class__(res)
+
+    def __sub__(self, other):
+        return self.__add__(-other)
 
     # pylint: enable=no-value-for-parameter
 
