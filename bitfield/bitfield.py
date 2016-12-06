@@ -11,6 +11,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+"""Bitfield module
+
+Implements BitField in Python
+"""
+
 import copy
 import functools
 import math
@@ -71,9 +76,10 @@ def _mapping_filter(item):
 def _is_descriptor(obj):
     """Returns True if obj is a descriptor, False otherwise."""
     return (
-            hasattr(obj, '__get__') or
-            hasattr(obj, '__set__') or
-            hasattr(obj, '__delete__'))
+        hasattr(obj, '__get__') or
+        hasattr(obj, '__set__') or
+        hasattr(obj, '__delete__')
+    )
 
 
 def _is_dunder(name):
@@ -85,10 +91,12 @@ def _is_dunder(name):
 
 
 class BitField(object):
+    """Fake class for BitFieldMeta compilation"""
     pass
 
 
 class BitFieldMeta(type):
+    """Metaclass for BitField class and subclasses construction"""
     def __new__(mcs, name, bases, classdict):
         """BitField metaclass
 
@@ -187,7 +195,7 @@ def _compare_idx(src):
 
 
 # noinspection PyRedeclaration
-class BitField(BaseBitFieldMeta):
+class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     """Bitfield representation"""
     __slots__ = ['__value', '__parent_obj', '__parent_slc']
 
@@ -203,11 +211,13 @@ class BitField(BaseBitFieldMeta):
         self.__value = x if isinstance(x, int) else int(x, base=base)
         if _parent:
             self.__parent_obj, self.__parent_slc = _parent
+        super(self.__class__, self).__init__()
 
     @property
     def _bit_length(self):
-        """Number of bits necessary to represent self in binary. Could be frozen by constructor
+        """Number of bits necessary to represent self in binary.
 
+        Could be frozen by constructor
         :rtype: int
         """
         return self.__length if self.__length else self.__value.bit_length()
@@ -218,29 +228,16 @@ class BitField(BaseBitFieldMeta):
         return length if length != 0 else 1
 
     def _to_bytes(self, length, byteorder, *args, **kwargs):
-        """
-        BitField._to_bytes(length, byteorder, *, signed=False) -> bytes
+        """Convert self to bytes
 
-        Return an array of bytes representing an integer.
-
-        The integer is represented using length bytes.  An OverflowError is
-        raised if the integer is not representable with the given number of
-        bytes.
-
-        The byteorder argument determines the byte order used to represent the
-        integer.  If byteorder is 'big', the most significant byte is at the
-        beginning of the byte array.  If byteorder is 'little', the most
-        significant byte is at the end of the byte array.  To request the native
-        byte order of the host system, use `sys.byteorder' as the byte order value.
-
-        The signed keyword-only argument determines whether two's complement is
-        used to represent the integer.  If signed is False and a negative integer
-        is given, an OverflowError is raised.
+        :type length: int
+        :type byteorder: str
+        :rtype: bytes
         """
         return self.__value.to_bytes(length, byteorder, *args, **kwargs)
 
     def _change_byteorder(self, old_order, new_order):
-        """Change internal byteorder. Usd for fixing incorrectly decoded data"""
+        """Change internal byteorder"""
         if len(self) > 1:
             self.__value = int.from_bytes(
                 self._to_bytes(
@@ -292,6 +289,7 @@ class BitField(BaseBitFieldMeta):
     def __le__(self, other):
         return int(self) <= int(other)
 
+    # pylint: disable=protected-access
     def __eq__(self, other):
         # As integer
         if isinstance(other, int):
@@ -302,6 +300,8 @@ class BitField(BaseBitFieldMeta):
         return \
             isinstance(other, self.__class__) and\
             int(self) == int(other) and self._mapping == other._mapping
+
+    # pylint: enable=protected-access
 
     def __ne__(self, other):
         return not self == other
@@ -317,6 +317,7 @@ class BitField(BaseBitFieldMeta):
         self._value ^= int(other)
 
     # Non modify operations: new BitField will re-use _mapping
+    # pylint: disable=no-value-for-parameter
     def __and__(self, other):
         return self.__class__(int(self) & int(other))
 
@@ -325,6 +326,7 @@ class BitField(BaseBitFieldMeta):
 
     def __xor__(self, other):
         return self.__class__(int(self) ^ int(other))
+    # pylint: enable=no-value-for-parameter
 
     # Integer modify operations
     def __iadd__(self, other):
@@ -346,6 +348,7 @@ class BitField(BaseBitFieldMeta):
 
     # Integer non-modify operations. New object is bitfield, if not overflow
     # new BitField will re-use _mapping
+    # pylint: disable=no-value-for-parameter
     def __add__(self, other):
         res = int(self) + int(other)
         if self.__length and self.__length < res.bit_length():
@@ -363,10 +366,11 @@ class BitField(BaseBitFieldMeta):
             )
         return self.__class__(res)
 
+    # pylint: enable=no-value-for-parameter
+
     # Integer -> integer operations
     def __mul__(self, other):
-        res = int(self) * int(other)
-        return res
+        return int(self) * other
 
     def __lshift__(self, other):
         return int(self) << other
@@ -527,13 +531,15 @@ class BitField(BaseBitFieldMeta):
         return self.__getitem__(item=item)
 
     # Representations
-    def __extract_string(self):
+    def _extract_string(self):
         """Helper method for usage in __str__ for mapped cases"""
         if not self.__mapping:
             raise ValueError('Mapping is not set')
 
-        def str_elem(item):
+        def makestr(item):
+            """Make string from mapping element"""
             val = self.__getitem__(item[0])
+            # pylint: disable=protected-access
             # noinspection PyProtectedMember
             if isinstance(val, int) or not val._mapping:
                 return '{key}={val!s}'.format(
@@ -541,14 +547,17 @@ class BitField(BaseBitFieldMeta):
                     val=val
                 )
             else:
+                # noinspection PyProtectedMember
                 return '{key}=({val})'.format(
                     key=item[0],
-                    val=val.__extract_string()
+                    val=val._extract_string()
+
                 )
+            # pylint: enable=protected-access
 
         return ", ".join(
             map(
-                str_elem,
+                makestr,
                 sorted(self.__mapping.items(), key=_compare_idx)
             )
         )
@@ -557,7 +566,6 @@ class BitField(BaseBitFieldMeta):
         if not self.__mapping:
             # bit length is re-calculated to align bytes
             return '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
-                cls=self.__class__.__name__,
                 data=int(self),
                 length=len(self) * 2,
                 blength=self._bit_length
