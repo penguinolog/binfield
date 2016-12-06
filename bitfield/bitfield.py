@@ -276,9 +276,11 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         # As BitField
         # noinspection PyProtectedMember
-        return \
-            isinstance(other, self.__class__) and\
-            int(self) == int(other) and self._mapping == other._mapping
+        return (
+            int(self) == int(other) and
+            self._mapping == other._mapping and
+            len(self) == len(other)
+        )
 
     # pylint: enable=protected-access
 
@@ -373,7 +375,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         return {
             'x': self.__value,
             '_mapping': self.__mapping,
-            'length': self.__length
         }
 
     def __setstate__(self, state):
@@ -432,7 +433,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             return self.__getslice(slice(*item))
 
         idx = self.__mapping.get(item)
-        if isinstance(idx, (int, slice, tuple)):
+        if isinstance(idx, (int, slice, tuple, list)):
             return self.__getitem__(idx)
         if isinstance(idx, dict):  # Nested _mapping
             # Extract slice

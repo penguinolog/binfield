@@ -71,3 +71,25 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertIsInstance(bf[: 2], BitField)
         self.assertEqual(bf[: 2]._bit_length, 2)
+
+        self.assertIsInstance(bf[(0, 2)], BitField)
+        self.assertEqual(bf[(0, 2)]._bit_length, 2)
+
+        self.assertIsInstance(bf[[0, 2]], BitField)
+        self.assertEqual(bf[[0, 2]]._bit_length, 2)
+
+    def test_positive_mapped_no_len(self):
+        class MappedBitField(BitField):
+            test_index = 0
+            test_slc = slice(1, 3)
+            test_list_slc = [3, 5]
+
+        bf = MappedBitField(7)
+
+        self.assertEqual(bf['test_index'], bf[0])
+        self.assertEqual(bf['test_slc'], bf[1: 3])
+        self.assertEqual(bf['test_list_slc'], bf[3: 5])
+
+        self.assertEqual(bf.test_index, bf[0])
+        self.assertEqual(bf.test_slc, bf[1: 3])
+        self.assertEqual(bf.test_list_slc, bf[3: 5])
