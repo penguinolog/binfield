@@ -23,7 +23,7 @@ setuptools.setup(
     version=bitfield.__version__,
     packages=['bitfield'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 2 - Pre-Alpha',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',

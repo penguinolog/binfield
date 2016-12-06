@@ -12,7 +12,161 @@
 #    under the License.
 
 import copy
+import functools
 import math
+
+
+def _mangle(cls_name, attr_name):
+    """Mangle attribute
+
+    :param cls_name: class name
+    :type cls_name: str
+    :param attr_name: attribute name
+    :type attr_name: str
+    :return: mangled attribute
+    :rtype: str
+    """
+    return '_{cls_name!s}__{attr_name!s}'.format(
+        cls_name=cls_name,
+        attr_name=attr_name
+    )
+
+
+def _mapping_filter(item):
+    """Filter for namig records from namespace
+
+    :param item: namespace item
+    :type item: tuple
+    :rtype: bool
+    """
+    key, val = item
+
+    # Protected
+    if key.startswith('_') and key != '_slc':
+        return False
+
+    # Simple _mapping
+    if isinstance(val, (int, slice)):
+        return True
+
+    # Slice as an iterable
+    if isinstance(val, (tuple, list)) and len(val) == 2 and\
+            isinstance(val[0], int) and isinstance(val[1], int):
+        return True
+
+    # Not nested
+    if not isinstance(val, dict):
+        return False
+
+    # Process nested
+    return all(
+        functools.reduce(
+            lambda coll, value: coll + [_mapping_filter(value)],
+            val.items(),
+            []
+        )
+    )
+
+
+def _is_descriptor(obj):
+    """Returns True if obj is a descriptor, False otherwise."""
+    return (
+            hasattr(obj, '__get__') or
+            hasattr(obj, '__set__') or
+            hasattr(obj, '__delete__'))
+
+
+def _is_dunder(name):
+    """Returns True if a __dunder__ name, False otherwise."""
+    return (name[:2] == name[-2:] == '__' and
+            name[2:3] != '_' and
+            name[-3:-2] != '_' and
+            len(name) > 4)
+
+
+class BitField(object):
+    pass
+
+
+class BitFieldMeta(type):
+    def __new__(mcs, name, bases, classdict):
+        """BitField metaclass
+
+        :type name: str
+        :type bases: tuple
+        :type classdict: dict
+        :returns: new class
+        """
+
+        for base in bases:
+            if base is not BitField and issubclass(base, BitField):
+                raise TypeError("Cannot extend BitField")
+
+        mapping = {}
+        if '_slc' in classdict:
+            raise ValueError(
+                '_slc is reserved index for slicing nested BitFields'
+            )
+        for m_key, m_val in filter(_mapping_filter, classdict.items()):
+            mapping[m_key] = m_val
+
+        if _mangle(name, 'length') in classdict:
+            length = classdict[_mangle(name, 'length')]
+            del classdict[_mangle(name, 'length')]
+        else:
+            length = None
+
+        if mapping:
+            for key in mapping:
+                del classdict[key]  # drop
+
+            garbage = {}
+
+            for key, val in filter(
+                lambda item: not (
+                    _is_dunder(item[0]) or _is_descriptor(item[1])
+                ),
+                classdict.items()
+            ):
+                garbage[key] = val
+            if garbage:
+                raise TypeError(
+                    'Several data is not recognized in class structure: '
+                    '{!r}'.format(garbage)
+                )
+
+            classdict[_mangle('BitField', 'mapping')] = mapping
+        else:
+            classdict[_mangle('BitField', 'mapping')] = None
+
+        if _mangle(name, 'length') in classdict:
+            classdict[_mangle('BitField', 'length')] = length
+        else:
+            classdict[_mangle('BitField', 'length')] = None
+
+        return super().__new__(mcs, name, bases, classdict)
+
+    @classmethod
+    def makecls(mcs, name, mapping=None, length=None):
+        """Create new BitField subclass
+
+        :param name: Class name
+        :type name: str
+        :param mapping: Data mapping
+        :type mapping: dict
+        :param length: BitField bit length
+        :type length: int
+        :returns: BitField subclass
+        """
+        if mapping is not None:
+            classdict = mapping
+            classdict[_mangle(name, 'length')] = length
+        else:
+            classdict = {}
+        return mcs.__new__(mcs, name, (BitField, ), classdict)
+
+
+BaseBitFieldMeta = BitFieldMeta.__new__(BitFieldMeta, 'intermediate_class', (), {})
 
 
 def _compare_idx(src):
@@ -28,27 +182,26 @@ def _compare_idx(src):
     raise TypeError('Unexpected value type: {!r} ({})'.format(src[1], type(src[1])))
 
 
-class BitField(object):
+# noinspection PyRedeclaration
+class BitField(BaseBitFieldMeta):
     """Bitfield representation"""
-    __slots__ = ['__value', '__mapping', '__length']
+    __slots__ = ['__value', '__parent_obj', '__parent_slc']
 
-    def __init__(self, x=0, base=10, mapping=None, length=0):
+    def __init__(self, x=0, base=10, _parent=None):
         """Creates new BitField object from integer value
 
         :param x: Start value
         :type x: int
         :param base: base for start value
         :type base: int
-        :param mapping: data structure for named bitfield
-        :type mapping: dict
-        :param length: Upper limit of stored data in bytes. No limit, if zero
-        :type length: int
+        :type _parent: (BitField, slice)
         """
         self.__value = x if isinstance(x, int) else int(x, base=base)
-        self.__mapping = mapping if mapping is not None else {}
-        self.__length = length
+        if _parent:
+            self.__parent_obj, self.__parent_slc = _parent
 
-    def bit_length(self):
+    @property
+    def _bit_length(self):
         """Number of bits necessary to represent self in binary. Could be frozen by constructor
 
         :rtype: int
@@ -57,37 +210,12 @@ class BitField(object):
 
     def __len__(self):
         """Data length in bytes"""
-        length = int(math.ceil(self.bit_length()/8.))
+        length = int(math.ceil(self._bit_length / 8.))
         return length if length != 0 else 1
 
-    # noinspection PyShadowingBuiltins
-    @classmethod
-    def from_bytes(cls, bytes, byteorder, *args, **kwargs):
+    def _to_bytes(self, length, byteorder, *args, **kwargs):
         """
-        BitField.from_bytes(bytes, byteorder, *, signed=False) -> int
-
-
-        Return the integer represented by the given array of bytes.
-
-
-        The bytes argument must be a bytes-like object (e.g. bytes or bytearray).
-
-
-        The byteorder argument determines the byte order used to represent the
-        integer.  If byteorder is 'big', the most significant byte is at the
-        beginning of the byte array.  If byteorder is 'little', the most
-        significant byte is at the end of the byte array.  To request the native
-        byte order of the host system, use `sys.byteorder' as the byte order value.
-
-
-        The signed keyword-only argument indicates whether two's complement is
-        used to represent the integer.
-        """
-        return cls(x=int.from_bytes(bytes, byteorder, *args, **kwargs))
-
-    def to_bytes(self, length, byteorder, *args, **kwargs):
-        """
-        BitField.to_bytes(length, byteorder, *, signed=False) -> bytes
+        BitField._to_bytes(length, byteorder, *, signed=False) -> bytes
 
         Return an array of bytes representing an integer.
 
@@ -107,17 +235,36 @@ class BitField(object):
         """
         return self.__value.to_bytes(length, byteorder, *args, **kwargs)
 
-    def change_byteorder(self, old_order, new_order):
+    def _change_byteorder(self, old_order, new_order):
         """Change internal byteorder. Usd for fixing incorrectly decoded data"""
         if len(self) > 1:
             self.__value = int.from_bytes(
-                self.to_bytes(
+                self._to_bytes(
                     len(self),
                     byteorder=old_order
                 ),
                 byteorder=new_order
             )
 
+    @property
+    def _value(self):
+        return self.__value
+
+    @_value.setter
+    def _value(self, new_value):
+        if self.__parent_obj:
+            self.__parent_obj[self.__parent_slc] = new_value
+        self.__value = new_value
+
+    @property
+    def _mapping(self):
+        """Read-only _mapping structure
+
+        :rtype: dict
+        """
+        return copy.deepcopy(self.__mapping)
+
+    # integer methods
     def __int__(self):
         return self.__value
 
@@ -128,24 +275,6 @@ class BitField(object):
     # math operators
     def __abs__(self):
         return int(self)
-
-    def __and__(self, other):
-        return self.__class__(int(self) & int(other), mapping=copy.deepcopy(self.__mapping))
-
-    def __iand__(self, other):
-        self.__value &= int(other)
-
-    def __or__(self, other):
-        return self.__class__(int(self) | int(other), mapping=copy.deepcopy(self.__mapping))
-
-    def __ior__(self, other):
-        self.__value |= int(other)
-
-    def __xor__(self, other):
-        return self.__class__(int(self) ^ int(other), mapping=copy.deepcopy(self.__mapping))
-
-    def __ixor__(self, other):
-        self.__value ^= int(other)
 
     def __gt__(self, other):
         return int(self) > int(other)
@@ -160,50 +289,77 @@ class BitField(object):
         return int(self) <= int(other)
 
     def __eq__(self, other):
+        # As integer
         if isinstance(other, int):
             return int(self) == other
 
+        # As BitField
+        # noinspection PyProtectedMember
         return \
             isinstance(other, self.__class__) and\
-            int(self) == int(other) and\
-            self.mapping == other.mapping
+            int(self) == int(other) and self._mapping == other._mapping
 
     def __ne__(self, other):
         return not self == other
 
-    def __add__(self, other):
-        res = int(self) + int(other)
-        if self.__length and self.__length < res.bit_length():
-            return res
-        return self.__class__(res, mapping=self.__mapping, length=self.__length)
+    # Modify Bitwise operations
+    def __iand__(self, other):
+        self._value &= int(other)
 
+    def __ior__(self, other):
+        self._value |= int(other)
+
+    def __ixor__(self, other):
+        self._value ^= int(other)
+
+    # Non modify operations: new BitField will re-use _mapping
+    def __and__(self, other):
+        return self.__class__(int(self) & int(other))
+
+    def __or__(self, other):
+        return self.__class__(int(self) | int(other))
+
+    def __xor__(self, other):
+        return self.__class__(int(self) ^ int(other))
+
+    # Integer modify operations
     def __iadd__(self, other):
         res = int(self) + int(other)
         if self.__length and self.__length < res.bit_length():
             raise OverflowError(
-                'Result value {} not fill in data length ({} bits)'.format(res, self.__length))
+                'Result value {} not fill in '
+                'data length ({} bits)'.format(res, self.__length))
         self.__value = res
-
-    def __sub__(self, other):
-        res = int(self) - int(other)
-        if res < 0:
-            raise ValueError(
-                'BitField could not be negative! Value {} is bigger, than {}'.format(
-                    other, int(self)
-                )
-            )
-        return self.__class__(res, mapping=self.__mapping, length=self.__length)
 
     def __isub__(self, other):
         res = int(self) - int(other)
         if res < 0:
             raise ValueError(
-                'BitField could not be negative! Value {} is bigger, than {}'.format(
-                    other, int(self)
-                )
+                'BitField could not be negative! Value {} is bigger, '
+                'than {}'.format(other, int(self))
             )
         self.__value = res
 
+    # Integer non-modify operations. New object is bitfield, if not overflow
+    # new BitField will re-use _mapping
+    def __add__(self, other):
+        res = int(self) + int(other)
+        if self.__length and self.__length < res.bit_length():
+            return res
+        return self.__class__(res)
+
+    def __sub__(self, other):
+        res = int(self) - int(other)
+        if res < 0:
+            raise ValueError(
+                'BitField could not be negative! '
+                'Value {} is bigger, than {}'.format(
+                    other, int(self)
+                )
+            )
+        return self.__class__(res)
+
+    # Integer -> integer operations
     def __mul__(self, other):
         res = int(self) * int(other)
         return res
@@ -217,115 +373,114 @@ class BitField(object):
     def __bool__(self):
         return bool(int(self))
 
-    # Data manipulation
+    # Data manipulation: hash, pickle
     def __hash__(self):
         return hash((
             self.__class__,
             self.__value,
-            str(self.__mapping),
             self.__length
         ))
 
     def __getstate__(self):
         return {
             'x': self.__value,
-            'mapping': self.__mapping,
+            '_mapping': self.__mapping,
             'length': self.__length
         }
 
     def __setstate__(self, state):
         self.__init__(**state)  # getstate returns enough data for __init__
 
-    # Properties
-    @property
-    def mapping(self):
-        """Read-only mapping structure
-
-        :rtype: dict
-        """
-        return copy.deepcopy(self.__mapping)
-
-    @mapping.setter
-    def mapping(self, mapping):
-        """Fill or replace mapping
-
-        :type mapping: dict
-        """
-        if isinstance(mapping, dict):
-            self.__mapping = copy.deepcopy(mapping)
-
     # Access as dict
+    def __getslice(self, item, mapping=None, name='AnonimousBitField'):
+        if item.step:
+            raise IndexError('Step is not supported for slices in BitField')
+        stop = (
+            item.stop
+            if (not self.__length or item.stop < self.__length)
+            else self.__length
+        )
+        data_block = int(self) ^ (int(self) >> stop << stop)
+        if item.start:
+            if item.start > stop:
+                raise IndexError(
+                    'Start index could not be greater, then stop index '
+                    'and should not be out of data'
+                )
+
+            cls = BitFieldMeta.makecls(
+                name=name,
+                mapping=mapping,
+                length=stop - item.start
+            )
+            return cls(data_block, _parent=(self, item))
+
+        cls = BitFieldMeta.makecls(
+            name=name,
+            mapping=mapping,
+            length=stop
+        )
+        return cls(data_block, _parent=(self, item))
+
     def __getitem__(self, item):
         """Extract bits
 
-        :rtype: BitField
+        :type item: union(str, int, slice, tuple, list)
+        :rtype: union(BitField, int)
         :raises: IndexError
         """
         if isinstance(item, int):
+            # Single bit return as integer
             if self.__length and item > self.__length:
                 raise IndexError(
-                    'Index {} is out of data length {}'.format(item, self.__length))
-            return self.__class__(int(self) >> item & 1)
+                    'Index {} is out of data length {}'
+                    ''.format(item, self.__length))
+            return int(self) >> item & 1
 
         if isinstance(item, slice):
-            if item.step:
-                raise IndexError('Step is not supported for slices in BitField')
-            stop = (
-                item.stop
-                if (not self.__length or item.stop < self.__length)
-                else self.__length
-            )
-            data_block = int(self) ^ (int(self) >> stop << stop)
-            if item.start:
-                if item.start > stop:
-                    raise IndexError(
-                        'Start index could not be greater, then stop index '
-                        'and should not be out of data'
-                    )
+            return self.__getslice(item)
 
-                return self.__class__(
-                    data_block >> item.start,
-                    length=stop - item.start
-                )
-
-            return self.__class__(
-                data_block,
-                length=stop
-            )
-
-        if isinstance(item, tuple):
-            return self.__getitem__(slice(*item))
+        if isinstance(item, (tuple, list)):
+            return self.__getslice(slice(*item))
 
         idx = self.__mapping.get(item)
         if isinstance(idx, (int, slice, tuple)):
             return self.__getitem__(idx)
-        if isinstance(idx, dict):  # Nested mapping
+        if isinstance(idx, dict):  # Nested _mapping
             # Extract slice
             slc = slice(*idx['_slc'])
-            # Build new mapping dict
+            # Build new _mapping dict
             mapping = copy.deepcopy(idx)
             del mapping['_slc']
             # Get new val
-            val = self.__getitem__(slc)
-            # Get instance with length and mapping from mapping dict
-            val.mapping = mapping
-            return val
+            return self.__getslice(slc, mapping=mapping, name=item)
+
         raise IndexError(item)
 
     def __setitem__(self, key, value):
+        if not isinstance(value, (int, self.__class__)):
+            raise TypeError(
+                'BitField value could be set only as int or the same class'
+            )
+
         mask = int(self) ^ int(self.__getitem__(key))
         if isinstance(key, int):
             if value.bit_length() > 1:
-                raise ValueError('Single bit could be changed only by another single bit')
+                raise ValueError(
+                    'Single bit could be changed only by another single bit'
+                )
             if self.__length and key > self.__length:
                 raise OverflowError(
-                    'Index is out of data length: {} > {}'.format(key, self.__length))
-            self.__value = mask | value << key
+                    'Index is out of data length: '
+                    '{} > {}'.format(key, self.__length))
+            self._value = mask | value << key
             return
 
         if isinstance(key, slice):
             if key.step:
-                raise IndexError('Step is not supported for slices in BitField')
+                raise IndexError(
+                    'Step is not supported for slices in BitField'
+                )
 
             if self.__length and key.stop > self.__length:
                 raise OverflowError(
@@ -335,9 +490,17 @@ class BitField(object):
 
             if key.start:
                 if key.start > key.stop:
-                    raise IndexError('Start index could not be greater, then stop index')
-                if value.bit_length() > key.stop - key.start:  # Too many bits: drop not used
-                    value ^= (value >> (key.stop - key.start) << (key.stop-key.start))
+                    raise IndexError(
+                        'Start index could not be greater, then stop index: '
+                        'negative data length'
+                    )
+
+                length = key.stop - key.start
+                if value.bit_length() > length:
+                    # Too many bits: drop not used
+                    value ^= (
+                        value >> length << length
+                    )
                 self.__value = mask | value << key.start
                 return
             if value.bit_length() > key.stop:  # Too many bits: drop not used
@@ -345,13 +508,13 @@ class BitField(object):
             self.__value = mask | value
             return
 
-        if isinstance(key, tuple):
+        if isinstance(key, (tuple, list)):
             return self.__setitem__(slice(*key), value)
 
         idx = self.__mapping.get(key)
         if isinstance(idx, (int, slice, tuple)):
             return self.__setitem__(idx, value)
-        if isinstance(idx, dict):  # Nested mapping
+        if isinstance(idx, dict):  # Nested _mapping
             # Extract slice from nested
             return self.__setitem__(slice(*idx['_slc']), value)
         raise IndexError(key)
@@ -367,10 +530,17 @@ class BitField(object):
 
         def str_elem(item):
             val = self.__getitem__(item[0])
-            if not val.mapping:
-                return '{key}={val!s}'.format(key=item[0], val=val)
+            # noinspection PyProtectedMember
+            if isinstance(val, int) or not val._mapping:
+                return '{key}={val!s}'.format(
+                    key=item[0],
+                    val=val
+                )
             else:
-                return '{key}=({val})'.format(key=item[0], val=val.__extract_string())
+                return '{key}=({val})'.format(
+                    key=item[0],
+                    val=val.__extract_string()
+                )
 
         return ", ".join(
             map(
@@ -386,7 +556,7 @@ class BitField(object):
                 cls=self.__class__.__name__,
                 data=int(self),
                 length=len(self) * 2,
-                blength=self.bit_length()
+                blength=self._bit_length
             )
 
         return (
@@ -400,35 +570,10 @@ class BitField(object):
 
     def __repr__(self):
         return (
-            '{cls}(x=0x{x:0{len}X}, base=16, mapping={mapping!r}, length={length!r})'.format(
+            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
                 cls=self.__class__.__name__,
                 x=int(self),
                 len=len(self) * 2,
-                mapping=self.__mapping,
-                length=self.__length
-            ))
-
-    # noinspection PyUnusedLocal
-    def __pretty_repr__(
-        self,
-        parser,
-        indent,
-        no_indent_start
-    ):
-        return (
-            '{cls}(\n'
-            '{spc:{indent}}x=0x{x:0{len}X},\n'
-            '{spc:{indent}}base=16,\n'
-            '{spc:{indent}}mapping={mapping!r},\n'
-            'length={len!r}\n'
-            ')'.format(
-                cls=self.__class__.__name__,
-                spc="",
-                indent=indent,
-                x=int(self),
-                len=len(self) * 2,
-                mapping=parser.process_elemnt(self.__mapping),
-                length=self.__length
             ))
 
 
