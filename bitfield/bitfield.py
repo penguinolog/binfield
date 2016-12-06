@@ -152,7 +152,7 @@ class BitFieldMeta(type):
         else:
             classdict[_mangle('BitField', 'length')] = None
 
-        return super(mcs).__new__(mcs, name, bases, classdict)
+        return super(BitFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
     @classmethod
     def makecls(mcs, name, mapping=None, length=None):
