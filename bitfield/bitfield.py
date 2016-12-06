@@ -166,7 +166,10 @@ class BitFieldMeta(type):
         return mcs.__new__(mcs, name, (BitField, ), classdict)
 
 
-BaseBitFieldMeta = BitFieldMeta.__new__(BitFieldMeta, 'intermediate_class', (), {})
+BaseBitFieldMeta = BitFieldMeta.__new__(
+    BitFieldMeta,
+    'intermediate_class', (), {}
+)
 
 
 def _compare_idx(src):
@@ -179,7 +182,8 @@ def _compare_idx(src):
         return src[1].start
     if isinstance(src[1], dict):
         return _compare_idx(src[1]['_slc'])
-    raise TypeError('Unexpected value type: {!r} ({})'.format(src[1], type(src[1])))
+    raise TypeError(
+        'Unexpected value type: {!r} ({})'.format(src[1], type(src[1])))
 
 
 # noinspection PyRedeclaration
@@ -552,7 +556,7 @@ class BitField(BaseBitFieldMeta):
     def __str__(self):
         if not self.__mapping:
             # bit length is re-calculated to align bytes
-            return '{cls}<0b{data:0{blength}b} (0x{data:0{length}X})>'.format(
+            return '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
                 cls=self.__class__.__name__,
                 data=int(self),
                 length=len(self) * 2,
@@ -560,7 +564,7 @@ class BitField(BaseBitFieldMeta):
             )
 
         return (
-            '{cls}<'.format(cls=self.__class__.__name__) +
+            '{data}<'.format(data=int(self)) +
             self.__extract_string() +
             ' (0x{data:0{length}X})>'.format(
                 data=int(self),
