@@ -62,6 +62,27 @@ def _is_sunder(name):
             len(name) > 2)
 
 
+def _is_valid_slice(obj):
+    """Slice is valid for BitField operations
+
+    :type obj: slice
+    :rtype: bool
+    """
+    return isinstance(obj, slice) and obj.step is None
+
+
+def _is_valid_slice_mapping(obj):
+    """Object is valid slice mapping
+
+    :rtype: bool
+    """
+    return (
+        isinstance(obj, (tuple, list)) and len(obj) == 2 and
+        isinstance(obj[0], int) and isinstance(obj[1], int) and
+        obj[0] < obj[1]
+    )
+
+
 def _mapping_filter(item):
     """Filter for namig records from namespace
 
@@ -79,12 +100,12 @@ def _mapping_filter(item):
         return False
 
     # Index / slice / slice from iterable
-    if isinstance(obj, int) or (
-        isinstance(obj, slice) and obj.step is None
-    ) or (
-        isinstance(obj, (tuple, list)) and len(obj) == 2 and
-        isinstance(obj[0], int) and isinstance(obj[1], int) and
-        obj[0] < obj[1]
+    if isinstance(
+        obj, int
+    ) or _is_valid_slice(
+        obj
+    ) or _is_valid_slice_mapping(
+        obj
     ):
         return True
 
@@ -100,7 +121,7 @@ def _get_idx(val):
     """Internal method for usage in repr. Moved from class implementation."""
     if isinstance(val, int):
         return {val}
-    if isinstance(val, (tuple, list)):
+    if _is_valid_slice_mapping(val):
         return set(range(*val))
     if isinstance(val, slice):
         if val.start is not None:
@@ -473,7 +494,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                     ''.format(item, self._length_))
             return int(self) >> item & 1
 
-        if isinstance(item, slice):
+        if _is_valid_slice(item):
             return self._getslice_(item)
 
         if isinstance(item, (tuple, list)):
@@ -493,17 +514,46 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         raise IndexError(item)
 
+    def _setslice_(self, key, value):
+        old_val = int(self.__getitem__(key))
+
+        if self._length_ and key.stop > self._length_:
+            raise OverflowError(
+                'Stop index is out of data length: '
+                '{} > {}'.format(key.stop, self._length_)
+            )
+
+        if key.start:
+            if key.start > key.stop:
+                raise IndexError(
+                    'Start index could not be greater, then stop index: '
+                    'negative data length'
+                )
+
+            length = key.stop - key.start
+            if value.bit_length() > length:
+                # Too many bits: drop not used
+                value ^= (
+                    value >> length << length
+                )
+            mask = int(self) ^ (old_val << key.start)
+            self._value_ = mask | value << key.start
+            return
+
+        if value.bit_length() > key.stop:  # Too many bits: drop not used
+            value ^= (value >> key.stop << key.stop)
+
+        mask = int(self) ^ old_val
+        self._value_ = mask | value
+        return
+
     def __setitem__(self, key, value):
         if not isinstance(value, (int, self.__class__)):
             raise TypeError(
                 'BitField value could be set only as int or the same class'
             )
 
-        old_val = int(self.__getitem__(key))
-
         if isinstance(key, int):
-            mask = int(self) ^ (old_val << key)
-
             if value.bit_length() > 1:
                 raise ValueError(
                     'Single bit could be changed only by another single bit'
@@ -512,52 +562,30 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 raise OverflowError(
                     'Index is out of data length: '
                     '{} > {}'.format(key, self._length_))
+
+            old_val = int(self.__getitem__(key))
+            mask = int(self) ^ (old_val << key)
             self._value_ = mask | value << key
             return
 
-        if isinstance(key, slice):
-            mask = int(self) ^ old_val
-            if key.step:
-                raise IndexError(
-                    'Step is not supported for slices in BitField'
-                )
+        if _is_valid_slice(key):
+            return self._setslice_(key, value)
 
-            if self._length_ and key.stop > self._length_:
-                raise OverflowError(
-                    'Stop index is out of data length: '
-                    '{} > {}'.format(key.stop, self._length_)
-                )
-
-            if key.start:
-                mask = int(self) ^ (old_val << key.start)
-                if key.start > key.stop:
-                    raise IndexError(
-                        'Start index could not be greater, then stop index: '
-                        'negative data length'
-                    )
-
-                length = key.stop - key.start
-                if value.bit_length() > length:
-                    # Too many bits: drop not used
-                    value ^= (
-                        value >> length << length
-                    )
-                self._value_ = mask | value << key.start
-                return
-            if value.bit_length() > key.stop:  # Too many bits: drop not used
-                value ^= (value >> key.stop << key.stop)
-            self._value_ = mask | value
-            return
-
-        if isinstance(key, (tuple, list)):
-            return self.__setitem__(slice(*key), value)
+        if _is_valid_slice_mapping(key):
+            return self._setslice_(slice(*key), value)
 
         idx = self._mapping_.get(key)
         if isinstance(idx, (int, slice, tuple)):
             return self.__setitem__(idx, value)
-        if isinstance(idx, dict):  # Nested _mapping_
+
+        if isinstance(
+            idx, dict
+        ) and _is_valid_slice_mapping(
+            idx['_index_']
+        ):  # Nested _mapping_
             # Extract slice from nested
-            return self.__setitem__(slice(*idx['_index_']), value)
+            return self._setslice_(slice(*idx['_index_']), value)
+
         raise IndexError(key)
 
     def __getattr__(self, item):
