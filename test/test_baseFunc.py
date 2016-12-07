@@ -4,7 +4,7 @@ from bitfield import BitField
 
 
 class BaseFunctionality(unittest.TestCase):
-    def test_positive_not_mapped_no_len(self):
+    def test_not_mapped_no_len(self):
         test_value = 42
 
         bf = BitField(test_value)
@@ -16,6 +16,10 @@ class BaseFunctionality(unittest.TestCase):
                 x=int(bf),
                 len=len(bf) * 2,
             )
+        )
+
+        self.assertEqual(
+            dir(bf), ['_bit_size_', '_mapping_', '_mask_', '_value_']
         )
 
         self.assertEqual(bf._bit_size_, test_value.bit_length())
@@ -98,6 +102,27 @@ class BaseFunctionality(unittest.TestCase):
         bf[:3] = 0
         self.assertEqual(bf[0: 3], 0)
 
+        with self.assertRaises(ValueError):
+            bf -= 100  # negative result
+
+        with self.assertRaises(ValueError):
+            _ = bf - 100  # negative result
+
+        with self.assertRaises(IndexError):
+            _ = bf[2:1]  # invalid slice
+
+        with self.assertRaises(IndexError):
+            _ = bf[None]  # invalid index type
+
+        with self.assertRaises(ValueError):
+            bf[0:2] = 10  # bigger, than slice
+
+        with self.assertRaises(ValueError):
+            bf[:2] = 10  # bigger, than slice
+
+        with self.assertRaises(ValueError):
+            bf[1] = 10  # bigger, than 1 bit
+
     def test_positive_mapped_no_len(self):
         class MappedBitField(BitField):
             test_index = 0
@@ -151,7 +176,16 @@ class BaseFunctionality(unittest.TestCase):
                 'multiple': (1, 3)
             }
             _size_ = 8
+
         nbf = NestedMappedBitField(0xFF)
+
+        self.assertEqual(
+            dir(nbf),
+            [
+                '_bit_size_', '_mapping_', '_mask_', '_value_',
+                'nested_block', 'test_index'
+            ]
+        )
 
         self.assertEqual(nbf, 0b00111111)  # Mask recalculated from top mapping
         self.assertEqual(nbf.nested_block, 0b11111)  # Index was used
@@ -160,3 +194,7 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertIsInstance(nbf + 193, int)  # owerflow _size_
         self.assertEqual(nbf + 193, 256)
+
+        nbf['nested_block'] = 0
+
+        self.assertEqual(nbf, 1)

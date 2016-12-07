@@ -1,5 +1,4 @@
 * `__setattr__`
-* predefined `_mask_`
-* unique index without intersections
+* `__str__`
 * aliases with specific syntax
 * Documentation

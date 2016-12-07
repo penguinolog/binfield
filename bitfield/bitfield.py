@@ -68,7 +68,12 @@ def _is_valid_slice(obj):
     :type obj: slice
     :rtype: bool
     """
-    return isinstance(obj, slice) and obj.step is None
+    valid_precondition = isinstance(obj, slice) and obj.step is None
+    if not valid_precondition:
+        return False
+    if obj.start is not None:
+        return valid_precondition and obj.start < obj.stop
+    return valid_precondition
 
 
 def _is_valid_slice_mapping(obj):
@@ -118,7 +123,7 @@ def _mapping_filter(item):
 
 
 def _get_idx(val):
-    """Internal method for usage in repr. Moved from class implementation."""
+    """Internal method for processing indexes."""
     if isinstance(val, int):
         return {val}
     if _is_valid_slice_mapping(val):
@@ -462,8 +467,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
     # Access as dict
     def _getslice_(self, item, mapping=None, name='AnonimousBitField'):
-        if item.step:
-            raise IndexError('Step is not supported for slices in BitField')
         stop = (
             item.stop
             if (not self._size_ or item.stop < self._size_)
@@ -477,12 +480,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             data_mask = None
 
         if item.start:
-            if item.start > stop:
-                raise IndexError(
-                    'Start index could not be greater, then stop index '
-                    'and should not be out of data'
-                )
-
             cls = BitFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
@@ -517,8 +514,11 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         if _is_valid_slice(item):
             return self._getslice_(item)
 
-        if isinstance(item, (tuple, list)):
+        if _is_valid_slice_mapping(item):
             return self._getslice_(slice(*item))
+
+        if not isinstance(item, str):
+            raise IndexError()
 
         idx = self._mapping_.get(item)
         if isinstance(idx, (int, slice, tuple, list)):
@@ -544,24 +544,15 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             )
 
         if key.start:
-            if key.start > key.stop:
-                raise IndexError(
-                    'Start index could not be greater, then stop index: '
-                    'negative data length'
-                )
-
             length = key.stop - key.start
             if value.bit_length() > length:
-                # Too many bits: drop not used
-                value ^= (
-                    value >> length << length
-                )
+                raise ValueError('Data size is bigger, than slice')
             mask = int(self) ^ (old_val << key.start)
             self._value_ = mask | value << key.start
             return
 
-        if value.bit_length() > key.stop:  # Too many bits: drop not used
-            value ^= (value >> key.stop << key.stop)
+        if value.bit_length() > key.stop:
+            raise ValueError('Data size is bigger, than slice')
 
         mask = int(self) ^ old_val
         self._value_ = mask | value
@@ -669,9 +660,12 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             ))
 
     def __dir__(self):
+        if self._mapping_ is not None:
+            keys = list(sorted(self._mapping_.keys()))
+        else:
+            keys = []
         return (
-            list(self._mapping_.keys()) +
-            ['_bit_size_', '_value_', '_mapping_', '_mask_']
+            ['_bit_size_', '_mapping_', '_mask_', '_value_'] + keys
         )
 
 
