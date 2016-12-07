@@ -466,21 +466,24 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             if (not self._size_ or item.stop < self._size_)
             else self._size_
         )
-        data_block = int(self) ^ (int(self) >> stop << stop)
+
+        mask = (1 << stop) - 1
 
         if self._mask_ is not None:
             data_mask = self._mask_ ^ (self._mask_ >> stop << stop)
+            mask = mask & self._mask_
         else:
             data_mask = None
 
         if item.start:
+            mask = mask >> item.start << item.start
             cls = BitFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
                 mask=data_mask >> item.start if data_mask else None,
                 length=stop - item.start
             )
-            return cls(data_block >> item.start, _parent=(self, item))
+            return cls((int(self) & mask) >> item.start, _parent=(self, item))
 
         cls = BitFieldMeta.makecls(
             name=name,
@@ -488,7 +491,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             mask=data_mask,
             length=stop
         )
-        return cls(data_block, _parent=(self, item))
+        return cls(int(self) & mask, _parent=(self, item))
 
     def __getitem__(self, item):
         """Extract bits
@@ -503,7 +506,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 raise IndexError(
                     'Index {} is out of data length {}'
                     ''.format(item, self._size_))
-            return int(self) >> item & 1
+            return (int(self) & (1 << item)) >> item
 
         if _is_valid_slice(item):
             return self._getslice_(item)
@@ -570,8 +573,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                     'Index is out of data length: '
                     '{} > {}'.format(key, self._size_))
 
-            old_val = int(self.__getitem__(key))
-            mask = int(self) ^ (old_val << key)
+            mask = int(self) ^ (int(self) & (1 << key))
             self._value_ = mask | value << key
             return
 
