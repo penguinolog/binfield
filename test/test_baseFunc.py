@@ -106,13 +106,13 @@ class BaseFunctionality(unittest.TestCase):
             bf -= 100  # negative result
 
         with self.assertRaises(ValueError):
-            _ = bf - 100  # negative result
+            bf - 100  # negative result
 
         with self.assertRaises(IndexError):
-            _ = bf[2:1]  # invalid slice
+            bf[2:1]  # invalid slice
 
         with self.assertRaises(IndexError):
-            _ = bf[None]  # invalid index type
+            bf[None]  # invalid index type
 
         with self.assertRaises(ValueError):
             bf[0:2] = 10  # bigger, than slice
