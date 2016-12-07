@@ -159,11 +159,12 @@ class BitFieldMeta(type):
             if base is not BitField and issubclass(base, BitField):
                 raise TypeError("Cannot extend BitField")
 
-        mapping = {}
         if '_index_' in classdict:
             raise ValueError(
                 '_index_ is reserved index for slicing nested BitFields'
             )
+
+        mapping = {}
         for m_key, m_val in filter(
             _mapping_filter,
             classdict.copy().items()
@@ -171,18 +172,16 @@ class BitFieldMeta(type):
             mapping[m_key] = m_val
             del classdict[m_key]  # drop
 
-        length = classdict.get('_size_', None)
+        size = classdict.get('_size_', None)
         mask = classdict.get('_mask_', None)
-        if not isinstance(length, (int, None.__class__)):
+        if not isinstance(size, (int, None.__class__)):
             raise TypeError(
-                'Pre-defined length has invalid type: {!r}'.format(length)
+                'Pre-defined size has invalid type: {!r}'.format(size)
             )
         if not isinstance(mask, (int, None.__class__)):
             raise TypeError(
                 'Pre-defined mask has invalid type: {!r}'.format(mask)
             )
-
-        classdict['_size_'] = property(fget=lambda _: length)
 
         garbage = {
             name: obj for name, obj in classdict.items()
@@ -199,17 +198,28 @@ class BitFieldMeta(type):
 
         if mapping:
             new_mask = _process_indexes(mapping)
+            if mask is None:
+                mask = new_mask
+
+            if size is None:
+                size = mask.bit_length()
+
             classdict['_mapping_'] = property(
                 fget=lambda _: copy.deepcopy(mapping),
                 doc="""Read-only mapping structure"""
             )
             # Do not override enforced mask
             classdict['_mask_'] = property(
-                fget=lambda _: mask if mask is not None else new_mask,
+                fget=lambda _: mask,
                 doc="""Read-only data binary mask"""
             )
         else:
             # None for structure and mask
+            if mask is not None and size is None:
+                size = mask.bit_length()
+
+            classdict['_size_'] = property(fget=lambda _: size)
+
             classdict['_mapping_'] = property(
                 fget=lambda _: None,
                 doc="""Read-only mapping structure"""

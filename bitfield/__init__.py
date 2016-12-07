@@ -20,5 +20,3 @@ from .bitfield import BitField
 
 __version__ = '0.0.1'
 __author__ = "Alexey Stepanov <penguinolog@gmail.com>"
-
-globals()['BitField'] = BitField  # Expose BitField
