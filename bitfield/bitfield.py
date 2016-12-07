@@ -457,6 +457,9 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             'x': self.__value,
         }
 
+    def __getnewargs__(self):  # PYPY requires this
+        return ()
+
     def __setstate__(self, state):
         self.__init__(**state)  # getstate returns enough data for __init__
 
