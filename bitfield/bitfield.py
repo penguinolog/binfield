@@ -166,7 +166,9 @@ class BitFieldMeta(type):
 
         garbage = {
             name: obj for name, obj in classdict.items()
-            if not (_is_dunder(name) or _is_sunder(name) or _is_descriptor(obj))
+            if not (
+                _is_dunder(name) or _is_sunder(name) or _is_descriptor(obj)
+            )
         }
 
         if garbage:
