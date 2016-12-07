@@ -1,3 +1,4 @@
+import pickle
 import unittest
 
 from bitfield import BitField
@@ -137,6 +138,9 @@ class BaseFunctionality(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             bf[1] = 10  # bigger, than 1 bit
+
+        new_bf = pickle.loads(pickle.dumps(bf, -1))
+        self.assertEqual(new_bf, bf)
 
     def test_positive_mapped_no_len(self):
         class MappedBitField(BitField):

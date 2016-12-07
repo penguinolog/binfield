@@ -247,14 +247,15 @@ class BitFieldMeta(type):
             classdict = mapping
             classdict['_size_'] = length
             classdict['_mask_'] = mask
+            classdict['__slots__'] = ()
         else:
-            classdict = {'_size_': length, '_mask_': mask}
+            classdict = {'_size_': length, '_mask_': mask, '__slots__': ()}
         return mcs.__new__(mcs, name, (BitField, ), classdict)
 
 
 BaseBitFieldMeta = BitFieldMeta.__new__(
     BitFieldMeta,
-    'intermediate_class', (), {}
+    'intermediate_class', (object, ), {'__slots__': ()}
 )
 
 
@@ -275,7 +276,7 @@ def _compare_idx(src):
 # noinspection PyRedeclaration
 class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     """Bitfield representation"""
-    __slots__ = ['__value', '__parent_obj', '__parent_index']
+    __slots__ = ['__value', '__parent_obj', '__parent_index', '__dict__']
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
@@ -514,8 +515,8 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         if _is_valid_slice_mapping(item):
             return self._getslice_(slice(*item))
 
-        if not isinstance(item, str):
-            raise IndexError()
+        if not isinstance(item, str) or item.startswith('_'):
+            raise IndexError(item)
 
         if self._mapping_ is None:
             raise IndexError("Mapping is not available")
