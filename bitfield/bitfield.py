@@ -652,7 +652,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def __dir__(self):
         return (
             list(self._mapping_.keys()) +
-            ['_bit_length_', '_value_', '_mapping_']
+            ['_bit_length_', '_value_', '_mapping_', '_mask_']
         )
 
 
