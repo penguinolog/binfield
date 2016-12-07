@@ -1,2 +1,0 @@
-# bitfield
-Python BitField implementation

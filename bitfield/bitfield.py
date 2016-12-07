@@ -182,8 +182,18 @@ class BitFieldMeta(type):
             mapping[m_key] = m_val
             del classdict[m_key]  # drop
 
-        if '_length_' not in classdict:
-            classdict['_length_'] = None
+        length = classdict.get('_size_', None)
+        mask = classdict.get('_mask_', None)
+        if not isinstance(length, (int, None.__class__)):
+            raise TypeError(
+                'Pre-defined length has invalid type: {!r}'.format(length)
+            )
+        if not isinstance(mask, (int, None.__class__)):
+            raise TypeError(
+                'Pre-defined mask has invalid type: {!r}'.format(mask)
+            )
+
+        classdict['_size_'] = property(fget=lambda _: length)
 
         garbage = {
             name: obj for name, obj in classdict.items()
@@ -199,13 +209,14 @@ class BitFieldMeta(type):
             )
 
         if mapping:
-            mask = _process_indexes(mapping)
+            new_mask = _process_indexes(mapping)
             classdict['_mapping_'] = property(
                 fget=lambda _: copy.deepcopy(mapping),
                 doc="""Read-only mapping structure"""
             )
+            # Do not override enforced mask
             classdict['_mask_'] = property(
-                fget=lambda _: mask,
+                fget=lambda _: mask if mask is not None else new_mask,
                 doc="""Read-only data binary mask"""
             )
         else:
@@ -215,14 +226,14 @@ class BitFieldMeta(type):
                 doc="""Read-only mapping structure"""
             )
             classdict['_mask_'] = property(
-                fget=lambda _: None,
+                fget=lambda _: mask,
                 doc="""Read-only data binary mask"""
             )
 
         return super(BitFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
     @classmethod
-    def makecls(mcs, name, mapping=None, length=None):
+    def makecls(mcs, name, mapping=None, mask=None, length=None):
         """Create new BitField subclass
 
         :param name: Class name
@@ -235,9 +246,10 @@ class BitFieldMeta(type):
         """
         if mapping is not None:
             classdict = mapping
-            classdict['_length_'] = length
+            classdict['_size_'] = length
+            classdict['_mask_'] = mask
         else:
-            classdict = {'_length_': length}
+            classdict = {'_size_': length, '_mask_': mask}
         return mcs.__new__(mcs, name, (BitField, ), classdict)
 
 
@@ -287,17 +299,17 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     # pylint: enable=super-init-not-called
 
     @property
-    def _bit_length_(self):
+    def _bit_size_(self):
         """Number of bits necessary to represent self in binary.
 
         Could be frozen by constructor
         :rtype: int
         """
-        return self._length_ if self._length_ else self.__value.bit_length()
+        return self._size_ if self._size_ else self.__value.bit_length()
 
     def __len__(self):
         """Data length in bytes"""
-        length = int(math.ceil(self._bit_length_ / 8.))
+        length = int(math.ceil(self._bit_size_ / 8.))
         return length if length != 0 else 1
 
     @property
@@ -384,10 +396,10 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     # Integer modify operations
     def __iadd__(self, other):
         res = int(self) + int(other)
-        if self._length_ and self._length_ < res.bit_length():
+        if self._size_ and self._size_ < res.bit_length():
             raise OverflowError(
                 'Result value {} not fill in '
-                'data length ({} bits)'.format(res, self._length_))
+                'data length ({} bits)'.format(res, self._size_))
         if res < 0:
             raise ValueError(
                 'BitField could not be negative!'
@@ -410,7 +422,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                     other, int(self)
                 )
             )
-        if self._length_ and self._length_ < res.bit_length():
+        if self._size_ and self._size_ < res.bit_length():
             return res
         return self.__class__(res)
 
@@ -437,7 +449,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         return hash((
             self.__class__,
             self.__value,
-            self._length_
+            self._size_
         ))
 
     def __getstate__(self):
@@ -454,10 +466,16 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             raise IndexError('Step is not supported for slices in BitField')
         stop = (
             item.stop
-            if (not self._length_ or item.stop < self._length_)
-            else self._length_
+            if (not self._size_ or item.stop < self._size_)
+            else self._size_
         )
         data_block = int(self) ^ (int(self) >> stop << stop)
+
+        if self._mask_ is not None:
+            data_mask = self._mask_ ^ (self._mask_ >> stop << stop)
+        else:
+            data_mask = None
+
         if item.start:
             if item.start > stop:
                 raise IndexError(
@@ -468,6 +486,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             cls = BitFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
+                mask=data_mask >> item.start if data_mask else None,
                 length=stop - item.start
             )
             return cls(data_block >> item.start, _parent=(self, item))
@@ -475,6 +494,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         cls = BitFieldMeta.makecls(
             name=name,
             mapping=mapping,
+            mask=data_mask,
             length=stop
         )
         return cls(data_block, _parent=(self, item))
@@ -488,10 +508,10 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         """
         if isinstance(item, int):
             # Single bit return as integer
-            if self._length_ and item > self._length_:
+            if self._size_ and item > self._size_:
                 raise IndexError(
                     'Index {} is out of data length {}'
-                    ''.format(item, self._length_))
+                    ''.format(item, self._size_))
             return int(self) >> item & 1
 
         if _is_valid_slice(item):
@@ -517,10 +537,10 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def _setslice_(self, key, value):
         old_val = int(self.__getitem__(key))
 
-        if self._length_ and key.stop > self._length_:
+        if self._size_ and key.stop > self._size_:
             raise OverflowError(
                 'Stop index is out of data length: '
-                '{} > {}'.format(key.stop, self._length_)
+                '{} > {}'.format(key.stop, self._size_)
             )
 
         if key.start:
@@ -545,7 +565,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         mask = int(self) ^ old_val
         self._value_ = mask | value
-        return
 
     def __setitem__(self, key, value):
         if not isinstance(value, (int, self.__class__)):
@@ -558,10 +577,10 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 raise ValueError(
                     'Single bit could be changed only by another single bit'
                 )
-            if self._length_ and key > self._length_:
+            if self._size_ and key > self._size_:
                 raise OverflowError(
                     'Index is out of data length: '
-                    '{} > {}'.format(key, self._length_))
+                    '{} > {}'.format(key, self._size_))
 
             old_val = int(self.__getitem__(key))
             mask = int(self) ^ (old_val << key)
@@ -629,7 +648,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             return '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
                 data=int(self),
                 length=len(self) * 2,
-                blength=self._bit_length_
+                blength=self._bit_size_
             )
 
         return (
@@ -652,7 +671,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def __dir__(self):
         return (
             list(self._mapping_.keys()) +
-            ['_bit_length_', '_value_', '_mapping_', '_mask_']
+            ['_bit_size_', '_value_', '_mapping_', '_mask_']
         )
 
 

@@ -8,9 +8,20 @@ class BaseFunctionality(unittest.TestCase):
         test_value = 42
 
         bf = BitField(test_value)
-        self.assertEqual(bf._bit_length_, test_value.bit_length())
+
+        self.assertEqual(
+            repr(bf),
+            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
+                cls=bf.__class__.__name__,
+                x=int(bf),
+                len=len(bf) * 2,
+            )
+        )
+
+        self.assertEqual(bf._bit_size_, test_value.bit_length())
         self.assertEqual(bf._value_, test_value)
         self.assertIsNone(bf._mapping_)
+        self.assertIsNone(bf._mask_)
 
         self.assertEqual(int(bf), test_value)
         self.assertEqual(bin(bf), bin(test_value))
@@ -67,22 +78,25 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(bf[0], 0)
 
         self.assertIsInstance(bf[0: 2], BitField)
-        self.assertEqual(bf[0: 2]._bit_length_, 2)
+        self.assertEqual(bf[0: 2]._bit_size_, 2)
 
         self.assertIsInstance(bf[: 2], BitField)
-        self.assertEqual(bf[: 2]._bit_length_, 2)
+        self.assertEqual(bf[: 2]._bit_size_, 2)
 
         self.assertIsInstance(bf[(0, 2)], BitField)
-        self.assertEqual(bf[(0, 2)]._bit_length_, 2)
+        self.assertEqual(bf[(0, 2)]._bit_size_, 2)
 
         self.assertIsInstance(bf[[0, 2]], BitField)
-        self.assertEqual(bf[[0, 2]]._bit_length_, 2)
+        self.assertEqual(bf[[0, 2]]._bit_size_, 2)
 
         bf[0] = 1
         self.assertEqual(bf[0], 1)
 
         bf[1: 3] = 3
         self.assertEqual(bf[1: 3], 3)
+
+        bf[:3] = 0
+        self.assertEqual(bf[0: 3], 0)
 
     def test_positive_mapped_no_len(self):
         class MappedBitField(BitField):
@@ -91,6 +105,25 @@ class BaseFunctionality(unittest.TestCase):
             test_list_slc = [3, 5]
 
         mbf = MappedBitField(7)
+
+        self.assertEqual(
+            repr(mbf),
+            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
+                cls=mbf.__class__.__name__,
+                x=int(mbf),
+                len=len(mbf) * 2,
+            )
+        )
+
+        self.assertEqual(
+            mbf._mapping_,
+            {
+                'test_index': 0,
+                'test_slc': slice(1, 3),
+                'test_list_slc': [3, 5]
+            }
+        )
+        self.assertEqual(mbf._mask_, 0b11111)
 
         self.assertEqual(mbf['test_index'], mbf[0])
         self.assertEqual(mbf['test_slc'], mbf[1: 3])
@@ -105,3 +138,25 @@ class BaseFunctionality(unittest.TestCase):
 
         mbf['test_slc'] = 0
         self.assertEqual(mbf['test_slc'], 0)
+
+        mbf['test_slc'][1] = 1
+        self.assertEqual(mbf['test_slc'], 2)
+
+    def test_positive_mapped_nested(self):
+        class NestedMappedBitField(BitField):
+            test_index = 0
+            nested_block = {
+                '_index_': (1, 6),
+                'single_bit': 0,
+                'multiple': (1, 3)
+            }
+            _size_ = 8
+        nbf = NestedMappedBitField(0xFF)
+
+        self.assertEqual(nbf, 0b00111111)  # Mask recalculated from top mapping
+        self.assertEqual(nbf.nested_block, 0b11111)  # Index was used
+        self.assertEqual(nbf.nested_block.single_bit, 0b1)
+        self.assertEqual(nbf.nested_block.multiple, 0b11)
+
+        self.assertIsInstance(nbf + 193, int)  # owerflow _size_
+        self.assertEqual(nbf + 193, 256)
