@@ -102,6 +102,9 @@ class BaseFunctionality(unittest.TestCase):
         bf[:3] = 0
         self.assertEqual(bf[0: 3], 0)
 
+        bf[(0, 2)] = 3
+        self.assertEqual(bf[0: 2], 3)
+
         with self.assertRaises(ValueError):
             bf -= 100  # negative result
 
@@ -113,6 +116,18 @@ class BaseFunctionality(unittest.TestCase):
 
         with self.assertRaises(IndexError):
             bf[None]  # invalid index type
+
+        with self.assertRaises(IndexError):
+            bf['test']  # no mapping
+
+        with self.assertRaises(TypeError):
+            bf[0] = None
+
+        with self.assertRaises(IndexError):
+            bf[None] = 10  # invalid index type
+
+        with self.assertRaises(IndexError):
+            bf['test'] = 10  # no mapping
 
         with self.assertRaises(ValueError):
             bf[0:2] = 10  # bigger, than slice

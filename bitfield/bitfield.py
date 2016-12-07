@@ -21,22 +21,6 @@ import functools
 import math
 
 
-def _mangle(cls_name, attr_name):
-    """Mangle attribute
-
-    :param cls_name: class name
-    :type cls_name: str
-    :param attr_name: attribute name
-    :type attr_name: str
-    :return: mangled attribute
-    :rtype: str
-    """
-    return '_{cls_name!s}__{attr_name!s}'.format(
-        cls_name=cls_name,
-        attr_name=attr_name
-    )
-
-
 def _is_descriptor(obj):
     """Returns True if obj is a descriptor, False otherwise."""
     return (
@@ -520,6 +504,9 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         if not isinstance(item, str):
             raise IndexError()
 
+        if self._mapping_ is None:
+            raise IndexError("Mapping is not available")
+
         idx = self._mapping_.get(item)
         if isinstance(idx, (int, slice, tuple, list)):
             return self.__getitem__(idx)
@@ -558,9 +545,9 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         self._value_ = mask | value
 
     def __setitem__(self, key, value):
-        if not isinstance(value, (int, self.__class__)):
+        if not isinstance(value, int):
             raise TypeError(
-                'BitField value could be set only as int or the same class'
+                'BitField value could be set only as int'
             )
 
         if isinstance(key, int):
@@ -583,6 +570,12 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         if _is_valid_slice_mapping(key):
             return self._setslice_(slice(*key), value)
+
+        if not isinstance(key, str):
+            raise IndexError()
+
+        if self._mapping_ is None:
+            raise IndexError("Mapping is not available")
 
         idx = self._mapping_.get(key)
         if isinstance(idx, (int, slice, tuple)):
