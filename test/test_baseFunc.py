@@ -8,9 +8,9 @@ class BaseFunctionality(unittest.TestCase):
         test_value = 42
 
         bf = BitField(test_value)
-        self.assertEqual(bf._bit_length, test_value.bit_length())
-        self.assertEqual(bf._value, test_value)
-        self.assertIsNone(bf._mapping)
+        self.assertEqual(bf._bit_length_, test_value.bit_length())
+        self.assertEqual(bf._value_, test_value)
+        self.assertIsNone(bf._mapping_)
 
         self.assertEqual(int(bf), test_value)
         self.assertEqual(bin(bf), bin(test_value))
@@ -67,16 +67,16 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(bf[0], 0)
 
         self.assertIsInstance(bf[0: 2], BitField)
-        self.assertEqual(bf[0: 2]._bit_length, 2)
+        self.assertEqual(bf[0: 2]._bit_length_, 2)
 
         self.assertIsInstance(bf[: 2], BitField)
-        self.assertEqual(bf[: 2]._bit_length, 2)
+        self.assertEqual(bf[: 2]._bit_length_, 2)
 
         self.assertIsInstance(bf[(0, 2)], BitField)
-        self.assertEqual(bf[(0, 2)]._bit_length, 2)
+        self.assertEqual(bf[(0, 2)]._bit_length_, 2)
 
         self.assertIsInstance(bf[[0, 2]], BitField)
-        self.assertEqual(bf[[0, 2]]._bit_length, 2)
+        self.assertEqual(bf[[0, 2]]._bit_length_, 2)
 
         bf[0] = 1
         self.assertEqual(bf[0], 1)
