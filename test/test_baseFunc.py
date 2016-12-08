@@ -1,3 +1,4 @@
+import copy
 import pickle
 import unittest
 
@@ -209,3 +210,26 @@ class BaseFunctionality(unittest.TestCase):
         nbf.nested_block = 0
 
         self.assertEqual(nbf, 0b11000001)  # Nested block is masked
+
+        with self.assertRaises(OverflowError):
+            nbf += 100  # overflow
+
+        with self.assertRaises(IndexError):
+            nbf[256]
+
+        with self.assertRaises(OverflowError):
+            nbf[256] = 1
+
+        with self.assertRaises(OverflowError):
+            nbf[:256] = 0xBA
+
+        with self.assertRaises(ValueError):
+            nbf[0:1] = 2
+
+        with self.assertRaises(ValueError):
+            pickle.dumps(nbf.nested_block, -1)  # Linked object
+
+        nested_copy = copy.copy(nbf.nested_block)
+        nested_copy.single_bit = 1
+        self.assertNotEqual(nbf.nested_block, nested_copy)
+        self.assertEqual(nbf, 0b11000001)  # Original
