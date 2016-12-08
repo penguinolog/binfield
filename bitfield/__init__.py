@@ -11,12 +11,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Implement BitField in python
-
-On import BitField class is exposed in globals
-"""
+"""Implement BitField in python"""
 
 from .bitfield import BitField
 
-__version__ = '0.0.1'
+__version__ = '0.1.0'
 __author__ = "Alexey Stepanov <penguinolog@gmail.com>"
