@@ -87,10 +87,11 @@ Nested mapping is supported:
 
 
     bf = MyBitField(0xFF)
-    0xFF == bf  # mask was calculated from top level indexes
-    0b00011111 == bf.nested  # Nested received mask and size from top and size from slice
-    0 == bf.nested.nested_bit  # __getitem__ and __getattr__ is available
-    bf.nested[0] = 0
+    0b00011111 == bf.nested
+    # Nested received (generated as all bits in range) mask from top
+    # and size from slice
+    1 == bf.nested.nested_bit  # __getitem__ and properties is available
+    bf.nested.nested_bit = 0  # property has setters
     0b11110111 == bf  # Change on nested is returned to main object
 
 
@@ -107,7 +108,6 @@ Test environments available:
     py35
     pypy
     pylint
-    docs
 
 CI systems
 ==========

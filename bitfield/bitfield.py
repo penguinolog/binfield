@@ -16,8 +16,8 @@
 Implements BitField in Python
 """
 
+import collections
 import copy
-import functools
 import math
 
 
@@ -106,21 +106,32 @@ def _mapping_filter(item):
     return all((_mapping_filter(value) for value in obj.items()))
 
 
+def _get_index(val):
+    """Extract real index from index"""
+    if isinstance(val, int) or _is_valid_slice(val):
+        return val
+    if _is_valid_slice_mapping(val):
+        return slice(*val)
+    if isinstance(val, dict):
+        return slice(*val['_index_'])
+    raise TypeError('Unexpected index format: {!r}'.format(val))
+
+
 def _get_idx(val):
-    """Internal method for processing indexes."""
+    """Get bit indexes
+
+    :rtype: set
+    """
     if isinstance(val, int):
         return {val}
-    if _is_valid_slice_mapping(val):
-        return set(range(*val))
-    if isinstance(val, slice):
-        if val.start is not None:
-            return set(range(val.start, val.stop))
-        return set(range(val.stop))
-    if isinstance(val, dict):
-        return set(range(*val['_index_']))
+    val = _get_index(val)
+    if val.start is not None:
+        return set(range(val.start, val.stop))
+    return set(range(val.stop))
 
 
-def _process_indexes(mapping):
+def _check_indexes(mapping):
+    """Check indexes for intersections"""
     global_index = set()
     for key, val in mapping.items():
         index = _get_idx(val)
@@ -132,10 +143,27 @@ def _process_indexes(mapping):
                     indexes=list(sorted(index - global_index))
                 ))
         global_index |= index
-    return functools.reduce(
-        lambda res, idx: res | 1 << idx,
-        global_index,
-        0
+
+
+def _get_start_index(src):
+    """Internal method for sorting mapping
+
+    :rtype: int
+    """
+    if isinstance(src[1], int):
+        return src[1]
+    return _get_index(src[1]).start
+
+
+def _make_mapping_property(key):
+    """Property generator. Fixing lazy calculation
+
+    :rtype: property
+    """
+    return property(
+        fget=lambda self: self.__getitem__(key),
+        fset=lambda self, val: self.__setitem__(key, val),
+        doc="""mapping key: {}""".format(key)
     )
 
 
@@ -164,24 +192,44 @@ class BitFieldMeta(type):
                 '_index_ is reserved index for slicing nested BitFields'
             )
 
-        mapping = {}
-        for m_key, m_val in filter(
-            _mapping_filter,
-            classdict.copy().items()
+        mapping = collections.OrderedDict()
+        for m_key, m_val in sorted(
+            filter(
+                _mapping_filter,
+                classdict.copy().items()
+            ),
+            key=_get_start_index
         ):
-            mapping[m_key] = m_val
-            del classdict[m_key]  # drop
+            if isinstance(m_val, (list, tuple)):
+                mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
+            else:
+                mapping[m_key] = m_val
+            classdict[m_key] = _make_mapping_property(m_key)
 
         size = classdict.get('_size_', None)
         mask = classdict.get('_mask_', None)
-        if not isinstance(size, (int, None.__class__)):
+
+        if size is not None and not isinstance(size, int):
             raise TypeError(
                 'Pre-defined size has invalid type: {!r}'.format(size)
             )
-        if not isinstance(mask, (int, None.__class__)):
+        if mask is not None and not isinstance(mask, int):
             raise TypeError(
                 'Pre-defined mask has invalid type: {!r}'.format(mask)
             )
+
+        if size is None and mask is not None:
+            size = mask.bit_length()
+
+        classdict['_size_'] = property(
+            fget=lambda _: size,
+            doc="""Read-only bit length size"""
+        )
+
+        classdict['_mask_'] = property(
+            fget=lambda _: mask,
+            doc="""Read-only data binary mask"""
+        )
 
         garbage = {
             name: obj for name, obj in classdict.items()
@@ -197,36 +245,17 @@ class BitFieldMeta(type):
             )
 
         if mapping:
-            new_mask = _process_indexes(mapping)
-            if mask is None:
-                mask = new_mask
-
-            if size is None:
-                size = mask.bit_length()
+            _check_indexes(mapping)
 
             classdict['_mapping_'] = property(
                 fget=lambda _: copy.deepcopy(mapping),
                 doc="""Read-only mapping structure"""
             )
-            # Do not override enforced mask
-            classdict['_mask_'] = property(
-                fget=lambda _: mask,
-                doc="""Read-only data binary mask"""
-            )
+
         else:
-            # None for structure and mask
-            if mask is not None and size is None:
-                size = mask.bit_length()
-
-            classdict['_size_'] = property(fget=lambda _: size)
-
             classdict['_mapping_'] = property(
                 fget=lambda _: None,
                 doc="""Read-only mapping structure"""
-            )
-            classdict['_mask_'] = property(
-                fget=lambda _: mask,
-                doc="""Read-only data binary mask"""
             )
 
         return super(BitFieldMeta, mcs).__new__(mcs, name, bases, classdict)
@@ -239,6 +268,8 @@ class BitFieldMeta(type):
         :type name: str
         :param mapping: Data mapping
         :type mapping: dict
+        :param mask: Data mask for new class
+        :type mask: int
         :param length: BitField bit length
         :type length: int
         :returns: BitField subclass
@@ -259,24 +290,10 @@ BaseBitFieldMeta = BitFieldMeta.__new__(
 )
 
 
-def _compare_idx(src):
-    """Internal method for usage in repr. Moved from class implementation."""
-    if isinstance(src[1], int):
-        return src[1]
-    if isinstance(src[1], (tuple, list)):
-        return src[1][0]
-    if isinstance(src[1], slice):
-        return src[1].start
-    if isinstance(src[1], dict):
-        return _compare_idx(src[1]['_index_'])
-    raise TypeError(
-        'Unexpected value type: {!r} ({})'.format(src[1], type(src[1])))
-
-
 # noinspection PyRedeclaration
 class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     """Bitfield representation"""
-    __slots__ = ['__value', '__parent_obj', '__parent_index', '__dict__']
+    __slots__ = ['__value', '__parent_link', '__dict__']
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
@@ -291,10 +308,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         self.__value = x if isinstance(x, int) else int(x, base=base)
         if self._mask_:
             self.__value &= self._mask_
-        if _parent:
-            self.__parent_obj, self.__parent_index = _parent
-        else:
-            self.__parent_obj = self.__parent_index = None
+        self.__parent_link = _parent
 
     # pylint: enable=super-init-not-called
 
@@ -305,7 +319,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         Could be frozen by constructor
         :rtype: int
         """
-        return self._size_ if self._size_ else self.__value.bit_length()
+        return self._size_ if self._size_ else self._value_.bit_length()
 
     def __len__(self):
         """Data length in bytes"""
@@ -314,20 +328,34 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
     @property
     def _value_(self):
+        if self.__parent_link is not None:  # Update value from parent
+            obj, offset = self.__parent_link
+            self.__value = (obj & (self._mask_ << offset)) >> offset
         return self.__value
 
+    # noinspection PyProtectedMember
     @_value_.setter
     def _value_(self, new_value):
         if self._mask_:
             new_value &= self._mask_
 
-        if self.__parent_obj is not None:
-            self.__parent_obj[self.__parent_index] = new_value
+        if self.__parent_link is not None:
+            obj, offset = self.__parent_link
+            # pylint: disable=protected-access
+            if obj._mask_ is not None:
+                obj_mask = obj._mask_
+            else:
+                obj_mask = (1 << obj._bit_size_) - 1
+
+            mask = obj_mask ^ (self._mask_ << offset)
+            val = new_value << offset
+            obj._value_ = (obj._value_ & mask) | val
+            # pylint: enable=protected-access
         self.__value = new_value
 
     # integer methods
     def __int__(self):
-        return self.__value
+        return self._value_
 
     def __index__(self):
         """Special method used for bin()/hex/oct/slicing support"""
@@ -448,11 +476,16 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def __hash__(self):
         return hash((
             self.__class__,
-            self.__value,
+            self._value_,
             self._size_
         ))
 
+    def __copy__(self):
+        return self.__class__(self._value_)
+
     def __getstate__(self):
+        if self.__parent_link:
+            raise ValueError('Linked BitFields does not supports pickle')
         return {
             'x': self.__value,
         }
@@ -464,7 +497,21 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         self.__init__(**state)  # getstate returns enough data for __init__
 
     # Access as dict
-    def _getslice_(self, item, mapping=None, name='AnonimousBitField'):
+    def _getslice_(self, item, mapping=None, name=None):
+        """Get slice from self
+
+        :type item: slice
+        :type mapping: dict
+        :type name: str
+        :rtype: BitField
+        """
+        if name is None:
+            name = '{cls}_slice_{start!s}_{stop!s}'.format(
+                cls=self.__class__.__name__,
+                start=item.start if item.start else 0,
+                stop=item.stop
+            )
+
         stop = (
             item.stop
             if (not self._size_ or item.stop < self._size_)
@@ -474,34 +521,34 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         mask = (1 << stop) - 1
 
         if self._mask_ is not None:
-            data_mask = self._mask_ ^ (self._mask_ >> stop << stop)
             mask = mask & self._mask_
-        else:
-            data_mask = None
 
         if item.start:
             mask = mask >> item.start << item.start
             cls = BitFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
-                mask=data_mask >> item.start if data_mask else None,
+                mask=mask >> item.start,
                 length=stop - item.start
             )
-            return cls((int(self) & mask) >> item.start, _parent=(self, item))
+            return cls(
+                (int(self) & mask) >> item.start,
+                _parent=(self, item.start)
+            )
 
         cls = BitFieldMeta.makecls(
             name=name,
             mapping=mapping,
-            mask=data_mask,
+            mask=mask,
             length=stop
         )
-        return cls(int(self) & mask, _parent=(self, item))
+        return cls(int(self) & mask, _parent=(self, 0))
 
     def __getitem__(self, item):
         """Extract bits
 
         :type item: union(str, int, slice, tuple, list)
-        :rtype: union(BitField, int)
+        :rtype: BitField
         :raises: IndexError
         """
         if isinstance(item, int):
@@ -510,7 +557,21 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 raise IndexError(
                     'Index {} is out of data length {}'
                     ''.format(item, self._size_))
-            return (int(self) & (1 << item)) >> item
+
+            name = '{cls}_index_{index}'.format(
+                cls=self.__class__.__name__,
+                index=item
+            )
+
+            cls = BitFieldMeta.makecls(
+                name=name,
+                mask=0b1,
+                length=1
+            )
+            return cls(
+                (int(self) & (1 << item)) >> item,
+                _parent=(self, item)
+            )
 
         if _is_valid_slice(item):
             return self._getslice_(item)
@@ -607,9 +668,6 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         raise IndexError(key)
 
-    def __getattr__(self, item):
-        return self.__getitem__(item=item)
-
     # Representations
     def _extract_string(self):
         """Helper method for usage in __str__ for mapped cases"""
@@ -638,7 +696,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         return ", ".join(
             map(
                 makestr,
-                sorted(self._mapping_.items(), key=_compare_idx)
+                self._mapping_.items()
             )
         )
 

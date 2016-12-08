@@ -159,15 +159,7 @@ class BaseFunctionality(unittest.TestCase):
             )
         )
 
-        self.assertEqual(
-            mbf._mapping_,
-            {
-                'test_index': 0,
-                'test_slc': slice(1, 3),
-                'test_list_slc': [3, 5]
-            }
-        )
-        self.assertEqual(mbf._mask_, 0b11111)
+        self.assertEqual(mbf._mask_, None)  # Mask is not generated
 
         self.assertEqual(mbf['test_index'], mbf[0])
         self.assertEqual(mbf['test_slc'], mbf[1: 3])
@@ -206,14 +198,14 @@ class BaseFunctionality(unittest.TestCase):
             ]
         )
 
-        self.assertEqual(nbf, 0b00111111)  # Mask recalculated from top mapping
-        self.assertEqual(nbf.nested_block, 0b11111)  # Index was used
+        self.assertEqual(nbf, 0b11111111)  # Mask not recalculated
+        self.assertEqual(nbf.nested_block, 0b00011111)  # Index was used
         self.assertEqual(nbf.nested_block.single_bit, 0b1)
         self.assertEqual(nbf.nested_block.multiple, 0b11)
 
-        self.assertIsInstance(nbf + 193, int)  # owerflow _size_
-        self.assertEqual(nbf + 193, 256)
+        self.assertIsInstance(nbf + 1, int)  # owerflow _size_
+        self.assertEqual(nbf + 1, 256)
 
-        nbf['nested_block'] = 0
+        nbf.nested_block = 0
 
-        self.assertEqual(nbf, 1)
+        self.assertEqual(nbf, 0b11000001)  # Nested block is masked
