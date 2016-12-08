@@ -18,6 +18,9 @@ import setuptools
 
 import binfield
 
+with open('README.rst') as f:
+    long_description = f.read()
+
 setuptools.setup(
     name='BinField',
     version=binfield.__version__,
@@ -49,5 +52,6 @@ setuptools.setup(
     license='Apache License, Version 2.0',
     author='Alexey Stepanov',
     author_email='penguinolog@gmail.com',
-    description='Python BinField implementation for binary data manipulation'
+    description='Python BinField implementation for binary data manipulation',
+    long_description=long_description,
 )
