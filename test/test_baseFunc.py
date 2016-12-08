@@ -2,14 +2,14 @@ import copy
 import pickle
 import unittest
 
-from binary_field import BitField
+from binfield import BinField
 
 
 class BaseFunctionality(unittest.TestCase):
     def test_not_mapped_no_len(self):
         test_value = 42
 
-        bf = BitField(test_value)
+        bf = BinField(test_value)
 
         self.assertEqual(
             repr(bf),
@@ -60,7 +60,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(bf, test_value)
 
         test_value = 42
-        bf = BitField(test_value)
+        bf = BinField(test_value)
 
         self.assertEqual(bf & 1, test_value & 1)
         self.assertEqual(bf | 1, test_value | 1)
@@ -83,16 +83,16 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(bf[0], 0)
 
-        self.assertIsInstance(bf[0: 2], BitField)
+        self.assertIsInstance(bf[0: 2], BinField)
         self.assertEqual(bf[0: 2]._bit_size_, 2)
 
-        self.assertIsInstance(bf[: 2], BitField)
+        self.assertIsInstance(bf[: 2], BinField)
         self.assertEqual(bf[: 2]._bit_size_, 2)
 
-        self.assertIsInstance(bf[(0, 2)], BitField)
+        self.assertIsInstance(bf[(0, 2)], BinField)
         self.assertEqual(bf[(0, 2)]._bit_size_, 2)
 
-        self.assertIsInstance(bf[[0, 2]], BitField)
+        self.assertIsInstance(bf[[0, 2]], BinField)
         self.assertEqual(bf[[0, 2]]._bit_size_, 2)
 
         bf[0] = 1
@@ -150,12 +150,12 @@ class BaseFunctionality(unittest.TestCase):
         )
 
     def test_positive_mapped_no_len(self):
-        class MappedBitField(BitField):
+        class MappedBinField(BinField):
             test_index = 0
             test_slc = slice(1, 3)
             test_list_slc = [3, 5]
 
-        mbf = MappedBitField(7)
+        mbf = MappedBinField(7)
 
         self.assertEqual(
             repr(mbf),
@@ -186,7 +186,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(mbf['test_slc'], 2)
 
     def test_positive_mapped_nested(self):
-        class NestedMappedBitField(BitField):
+        class NestedMappedBinField(BinField):
             test_index = 0
             nested_block = {
                 '_index_': (1, 6),
@@ -195,7 +195,7 @@ class BaseFunctionality(unittest.TestCase):
             }
             _size_ = 8
 
-        nbf = NestedMappedBitField(0xFF)
+        nbf = NestedMappedBinField(0xFF)
 
         self.assertEqual(
             dir(nbf),

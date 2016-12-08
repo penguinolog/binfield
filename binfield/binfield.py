@@ -11,9 +11,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Bitfield module
+"""BinField module
 
-Implements BitField in Python
+Implements BinField in Python
 """
 
 import collections
@@ -47,7 +47,7 @@ def _is_sunder(name):
 
 
 def _is_valid_slice(obj):
-    """Slice is valid for BitField operations
+    """Slice is valid for BinField operations
 
     :type obj: slice
     :rtype: bool
@@ -167,15 +167,15 @@ def _make_mapping_property(key):
     )
 
 
-class BitField(object):
-    """Fake class for BitFieldMeta compilation"""
+class BinField(object):
+    """Fake class for BinFieldMeta compilation"""
     pass
 
 
-class BitFieldMeta(type):
-    """Metaclass for BitField class and subclasses construction"""
+class BinFieldMeta(type):
+    """Metaclass for BinField class and subclasses construction"""
     def __new__(mcs, name, bases, classdict):
-        """BitField metaclass
+        """BinField metaclass
 
         :type name: str
         :type bases: tuple
@@ -184,12 +184,12 @@ class BitFieldMeta(type):
         """
 
         for base in bases:
-            if base is not BitField and issubclass(base, BitField):
-                raise TypeError("Cannot extend BitField")
+            if base is not BinField and issubclass(base, BinField):
+                raise TypeError("Cannot extend BinField")
 
         if '_index_' in classdict:
             raise ValueError(
-                '_index_ is reserved index for slicing nested BitFields'
+                '_index_ is reserved index for slicing nested BinFields'
             )
 
         mapping = collections.OrderedDict()
@@ -258,11 +258,11 @@ class BitFieldMeta(type):
                 doc="""Read-only mapping structure"""
             )
 
-        return super(BitFieldMeta, mcs).__new__(mcs, name, bases, classdict)
+        return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
     @classmethod
     def makecls(mcs, name, mapping=None, mask=None, length=None):
-        """Create new BitField subclass
+        """Create new BinField subclass
 
         :param name: Class name
         :type name: str
@@ -270,9 +270,9 @@ class BitFieldMeta(type):
         :type mapping: dict
         :param mask: Data mask for new class
         :type mask: int
-        :param length: BitField bit length
+        :param length: BinField bit length
         :type length: int
-        :returns: BitField subclass
+        :returns: BinField subclass
         """
         if mapping is not None:
             classdict = mapping
@@ -281,29 +281,29 @@ class BitFieldMeta(type):
             classdict['__slots__'] = ()
         else:
             classdict = {'_size_': length, '_mask_': mask, '__slots__': ()}
-        return mcs.__new__(mcs, name, (BitField, ), classdict)
+        return mcs.__new__(mcs, name, (BinField, ), classdict)
 
 
-BaseBitFieldMeta = BitFieldMeta.__new__(
-    BitFieldMeta,
+BaseBinFieldMeta = BinFieldMeta.__new__(
+    BinFieldMeta,
     'intermediate_class', (object, ), {'__slots__': ()}
 )
 
 
 # noinspection PyRedeclaration
-class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
-    """Bitfield representation"""
+class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
+    """BinField representation"""
     __slots__ = ['__value', '__parent_link', '__dict__']
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
-        """Creates new BitField object from integer value
+        """Creates new BinField object from integer value
 
         :param x: Start value
         :type x: int
         :param base: base for start value
         :type base: int
-        :type _parent: (BitField, slice)
+        :type _parent: (BinField, slice)
         """
         self.__value = x if isinstance(x, int) else int(x, base=base)
         if self._mask_:
@@ -342,7 +342,9 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         if self.__parent_link is not None:
             obj, offset = self.__parent_link
             # pylint: disable=protected-access
+            # noinspection PyUnresolvedReferences
             if obj._mask_ is not None:
+                # noinspection PyUnresolvedReferences
                 obj_mask = obj._mask_
             else:
                 obj_mask = (1 << obj._bit_size_) - 1
@@ -383,7 +385,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         if isinstance(other, int):
             return int(self) == other
 
-        # As BitField
+        # As BinField
         # noinspection PyProtectedMember
         return (
             int(self) == int(other) and
@@ -409,7 +411,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         self._value_ ^= int(other)
         return self
 
-    # Non modify operations: new BitField will re-use _mapping_
+    # Non modify operations: new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __and__(self, other):
         return self.__class__(int(self) & int(other))
@@ -430,7 +432,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 'data length ({} bits)'.format(res, self._size_))
         if res < 0:
             raise ValueError(
-                'BitField could not be negative!'
+                'BinField could not be negative!'
             )
         self._value_ = res
         return self
@@ -438,14 +440,14 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def __isub__(self, other):
         return self.__iadd__(-other)
 
-    # Integer non-modify operations. New object is bitfield, if not overflow
-    # new BitField will re-use _mapping_
+    # Integer non-modify operations. New object is BinField, if not overflow
+    # new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __add__(self, other):
         res = int(self) + int(other)
         if res < 0:
             raise ValueError(
-                'BitField could not be negative! '
+                'BinField could not be negative! '
                 'Value {} is bigger, than {}'.format(
                     other, int(self)
                 )
@@ -489,7 +491,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
     def __getstate__(self):
         if self.__parent_link:
-            raise ValueError('Linked BitFields does not supports pickle')
+            raise ValueError('Linked BinFields does not supports pickle')
         return {
             'x': self.__value,
         }
@@ -507,7 +509,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         :type item: slice
         :type mapping: dict
         :type name: str
-        :rtype: BitField
+        :rtype: BinField
         """
         if name is None:
             name = '{cls}_slice_{start!s}_{stop!s}'.format(
@@ -529,7 +531,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
 
         if item.start:
             mask = mask >> item.start << item.start
-            cls = BitFieldMeta.makecls(
+            cls = BinFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
                 mask=mask >> item.start,
@@ -540,7 +542,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 _parent=(self, item.start)
             )
 
-        cls = BitFieldMeta.makecls(
+        cls = BinFieldMeta.makecls(
             name=name,
             mapping=mapping,
             mask=mask,
@@ -552,7 +554,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         """Extract bits
 
         :type item: union(str, int, slice, tuple, list)
-        :rtype: BitField
+        :rtype: BinField
         :raises: IndexError
         """
         if isinstance(item, int):
@@ -567,7 +569,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
                 index=item
             )
 
-            cls = BitFieldMeta.makecls(
+            cls = BinFieldMeta.makecls(
                 name=name,
                 mask=0b1,
                 length=1
@@ -629,7 +631,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
     def __setitem__(self, key, value):
         if not isinstance(value, int):
             raise TypeError(
-                'BitField value could be set only as int'
+                'BinField value could be set only as int'
             )
 
         if isinstance(key, int):
@@ -682,7 +684,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             """Make string from mapping element"""
             val = self.__getitem__(item[0])
             # pylint: disable=protected-access
-            # noinspection PyProtectedMember
+            # noinspection PyProtectedMember,PyUnresolvedReferences
             if not val._mapping_:
                 return '{spc:{indent}}{key}={val!s}'.format(
                     spc='',
@@ -745,4 +747,4 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         )
 
 
-__all__ = ['BitField']
+__all__ = ['BinField']

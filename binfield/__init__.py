@@ -11,9 +11,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Implement BitField in python"""
+"""Implement BinField in python"""
 
-from .bitfield import BitField
+from .binfield import BinField
 
 __version__ = '0.1.0'
 __author__ = "Alexey Stepanov <penguinolog@gmail.com>"

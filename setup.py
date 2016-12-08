@@ -12,16 +12,16 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Python BitField implementation"""
+"""Python BinField implementation"""
 
 import setuptools
 
-import binary_field
+import binfield
 
 setuptools.setup(
-    name='BitField',
-    version=binary_field.__version__,
-    packages=['binary_field'],
+    name='BinField',
+    version=binfield.__version__,
+    packages=['binfield'],
     classifiers=[
         'Development Status :: 3 - Alpha',
 
@@ -44,10 +44,10 @@ setuptools.setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
-    keywords='binary binary_field development',
-    url='https://github.com/penguinolog/binary_field',
+    keywords='binary binfield development',
+    url='https://github.com/penguinolog/binfield',
     license='Apache License, Version 2.0',
     author='Alexey Stepanov',
     author_email='penguinolog@gmail.com',
-    description='Python BitField implementation for binary data manipulation'
+    description='Python BinField implementation for binary data manipulation'
 )

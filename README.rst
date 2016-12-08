@@ -1,19 +1,19 @@
-bitfield
+binfield
 ========
 
-.. image:: https://travis-ci.org/penguinolog/bitfield.svg?branch=master
-    :target: https://travis-ci.org/penguinolog/binary_field
-.. image:: https://coveralls.io/repos/github/penguinolog/bitfield/badge.svg?branch=master
-    :target: https://coveralls.io/github/penguinolog/binary_field?branch=master
-.. image:: https://img.shields.io/github/license/penguinolog/bitfield.svg
-    :target: https://raw.githubusercontent.com/penguinolog/binary_field/master/LICENSE
+.. image:: https://travis-ci.org/penguinolog/binfield.svg?branch=master
+    :target: https://travis-ci.org/penguinolog/binfield
+.. image:: https://coveralls.io/repos/github/penguinolog/binfield/badge.svg?branch=master
+    :target: https://coveralls.io/github/penguinolog/binfield?branch=master
+.. image:: https://img.shields.io/github/license/penguinolog/binfield.svg
+    :target: https://raw.githubusercontent.com/penguinolog/binfield/master/LICENSE
 
-Python bitfield implementation for binary data manipulation.
+Python binfield implementation for binary data manipulation.
 
 Pros:
 
 * Free software: Apache license
-* Open Source: https://github.com/penguinolog/bitfield
+* Open Source: https://github.com/penguinolog/binfield
 * Self-documented code: docstrings with types in comments
 * Tested: see bages on top
 * Support miltiple Python versions:
@@ -29,17 +29,17 @@ Pros:
 Usage
 =====
 
-Not mapped objects could be created simply from BitField class:
+Not mapped objects could be created simply from BinField class:
 
 .. code-block:: python
 
-    bf = BitField(42)
+    bf = BinField(42)
 
 Data with fixed size should be created as new class (type):
 
 .. code-block:: python
 
-    class TwoBytes(BitField):
+    class TwoBytes(BinField):
         _size_ = 16  # Size in bits
 
 
@@ -50,25 +50,25 @@ Also binary mask could be attached and data will be always conform with it:
 
 .. code-block:: python
 
-    class MyBitField(BitField):
+    class MyBinField(BinField):
         _mask_ = 0b11
         _size_ = 8
 
 
-    bf = MyBitField(5)
+    bf = MyBinField(5)
     0b001 == bf  # Mask was applied and 0b101 & 0b011 = 0b001
 
 Mapped objects is also should be created as new class (type):
 
 .. code-block:: python
 
-    class MyBitField(BitField):
+    class MyBinField(BinField):
         first = 0  # Single bit
         two_bits = [1, 3]  # Also could be mapped as tuple and slice
         _mask_ = 0b1011
 
 
-    bf = MyBitField(0b1101)
+    bf = MyBinField(0b1101)
     0b1001 == bf
     4 == bf._size_  # Size is generated during creation from mask
     0b01 == bf.two_bits._mask_  # Mask is inherited from parent object
@@ -77,7 +77,7 @@ Nested mapping is supported:
 
 .. code-block:: python
 
-    class MyBitField(BitField):
+    class MyBinField(BinField):
         first = 0  # Single bit
         two_bits = [1, 3]  # Also could be mapped as tuple and slice
         nested = {
@@ -89,7 +89,7 @@ Nested mapping is supported:
         # but mask will be calculated from outer level indexes only.
 
 
-    bf = MyBitField(0xFF)
+    bf = MyBinField(0xFF)
     0b00011111 == bf.nested
     # Nested received (generated as all bits in range) mask from top
     # and size from slice
@@ -100,7 +100,7 @@ Nested mapping is supported:
 
 Testing
 =======
-The main test mechanism for the package `binary_field` is using `tox`.
+The main test mechanism for the package `binfield` is using `tox`.
 Test environments available:
 
 ::
@@ -116,6 +116,6 @@ CI systems
 ==========
 For code checking several CI systems is used in parallel:
 
-1. `Travis CI: <https://travis-ci.org/penguinolog/binary_field>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it's publishes coverage on coveralls.
+1. `Travis CI: <https://travis-ci.org/penguinolog/binfield>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it's publishes coverage on coveralls.
 
-2. `coveralls: <https://coveralls.io/github/penguinolog/binary_field>`_ is used for coverage display.
+2. `coveralls: <https://coveralls.io/github/penguinolog/binfield>`_ is used for coverage display.
