@@ -5,6 +5,12 @@ binfield
     :target: https://travis-ci.org/penguinolog/binfield
 .. image:: https://coveralls.io/repos/github/penguinolog/binfield/badge.svg?branch=master
     :target: https://coveralls.io/github/penguinolog/binfield?branch=master
+.. image:: https://img.shields.io/pypi/v/binfield.svg
+    :target: https://pypi.python.org/pypi/binfield
+.. image:: https://img.shields.io/pypi/pyversions/binfield.svg
+    :target: https://pypi.python.org/pypi/binfield
+.. image:: https://img.shields.io/pypi/status/binfield.svg
+    :target: https://pypi.python.org/pypi/binfield
 .. image:: https://img.shields.io/github/license/penguinolog/binfield.svg
     :target: https://raw.githubusercontent.com/penguinolog/binfield/master/LICENSE
 
