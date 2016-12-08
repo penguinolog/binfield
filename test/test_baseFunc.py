@@ -2,7 +2,7 @@ import copy
 import pickle
 import unittest
 
-from bitfield import BitField
+from binary_field import BitField
 
 
 class BaseFunctionality(unittest.TestCase):

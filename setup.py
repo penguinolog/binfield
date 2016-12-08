@@ -16,12 +16,12 @@
 
 import setuptools
 
-import bitfield
+import binary_field
 
 setuptools.setup(
     name='BitField',
-    version=bitfield.__version__,
-    packages=['bitfield'],
+    version=binary_field.__version__,
+    packages=['binary_field'],
     classifiers=[
         'Development Status :: 3 - Alpha',
 
@@ -44,8 +44,8 @@ setuptools.setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
     ],
-    keywords='binary bitfield development',
-    url='https://github.com/penguinolog/bitfield',
+    keywords='binary binary_field development',
+    url='https://github.com/penguinolog/binary_field',
     license='Apache License, Version 2.0',
     author='Alexey Stepanov',
     author_email='penguinolog@gmail.com',

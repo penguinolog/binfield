@@ -2,11 +2,11 @@ bitfield
 ========
 
 .. image:: https://travis-ci.org/penguinolog/bitfield.svg?branch=master
-    :target: https://travis-ci.org/penguinolog/bitfield
+    :target: https://travis-ci.org/penguinolog/binary_field
 .. image:: https://coveralls.io/repos/github/penguinolog/bitfield/badge.svg?branch=master
-    :target: https://coveralls.io/github/penguinolog/bitfield?branch=master
+    :target: https://coveralls.io/github/penguinolog/binary_field?branch=master
 .. image:: https://img.shields.io/github/license/penguinolog/bitfield.svg
-    :target: https://raw.githubusercontent.com/penguinolog/bitfield/master/LICENSE
+    :target: https://raw.githubusercontent.com/penguinolog/binary_field/master/LICENSE
 
 Python bitfield implementation for binary data manipulation.
 
@@ -100,7 +100,7 @@ Nested mapping is supported:
 
 Testing
 =======
-The main test mechanism for the package `bitfield` is using `tox`.
+The main test mechanism for the package `binary_field` is using `tox`.
 Test environments available:
 
 ::
@@ -116,6 +116,6 @@ CI systems
 ==========
 For code checking several CI systems is used in parallel:
 
-1. `Travis CI: <https://travis-ci.org/penguinolog/bitfield>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it's publishes coverage on coveralls.
+1. `Travis CI: <https://travis-ci.org/penguinolog/binary_field>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it's publishes coverage on coveralls.
 
-2. `coveralls: <https://coveralls.io/github/penguinolog/bitfield>`_ is used for coverage display.
+2. `coveralls: <https://coveralls.io/github/penguinolog/binary_field>`_ is used for coverage display.
