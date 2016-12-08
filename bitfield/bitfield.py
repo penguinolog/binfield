@@ -480,8 +480,11 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             self._size_
         ))
 
+    # pylint: disable=no-value-for-parameter
     def __copy__(self):
         return self.__class__(self._value_)
+
+    # pylint: enable=no-value-for-parameter
 
     def __getstate__(self):
         if self.__parent_link:
