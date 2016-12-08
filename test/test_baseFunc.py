@@ -230,6 +230,9 @@ class BaseFunctionality(unittest.TestCase):
             pickle.dumps(nbf.nested_block, -1)  # Linked object
 
         nested_copy = copy.copy(nbf.nested_block)
+        self.assertFalse(nested_copy is nbf.nested_block)
+        # Hash will be different due to different base classes between calls
+        self.assertNotEqual(hash(nested_copy), hash(nbf.nested_block))
         nested_copy.single_bit = 1
         self.assertNotEqual(nbf.nested_block, nested_copy)
         self.assertEqual(nbf, 0b11000001)  # Original

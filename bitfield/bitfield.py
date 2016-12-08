@@ -477,7 +477,8 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         return hash((
             self.__class__,
             self._value_,
-            self._size_
+            # link is not included, but linked objects will have different
+            # base classes due to on the fly generation
         ))
 
     # pylint: disable=no-value-for-parameter

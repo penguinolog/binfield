@@ -65,10 +65,13 @@ Mapped objects is also should be created as new class (type):
     class MyBitField(BitField):
         first = 0  # Single bit
         two_bits = [1, 3]  # Also could be mapped as tuple and slice
+        _mask_ = 0b1011
 
 
     bf = MyBitField(0b1101)
-    0b101 == bf  # Mask and size is generated from mapping if not set during creation.
+    0b1001 == bf
+    4 == bf._size_  # Size is generated during creation from mask
+    0b01 == bf.two_bits._mask_  # Mask is inherited from parent object
 
 Nested mapping is supported:
 
