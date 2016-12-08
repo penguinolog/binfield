@@ -143,6 +143,12 @@ class BaseFunctionality(unittest.TestCase):
         new_bf = pickle.loads(pickle.dumps(bf, -1))
         self.assertEqual(new_bf, bf)
 
+        bf |= 0xff
+        self.assertEqual(
+            str(bf),
+            '255<0xFF (0b11111111)>'
+        )
+
     def test_positive_mapped_no_len(self):
         class MappedBitField(BitField):
             test_index = 0
@@ -236,3 +242,13 @@ class BaseFunctionality(unittest.TestCase):
         nested_copy.single_bit = 1
         self.assertNotEqual(nbf.nested_block, nested_copy)
         self.assertEqual(nbf, 0b11000001)  # Original
+        self.assertEqual(
+            str(nbf),
+            '193<\n'
+            '  test_index=1<0x01 (0b1)>,\n'
+            '  nested_block=(\n'
+            '    single_bit=0<0x00 (0b0)>,\n'
+            '    multiple=0<0x00 (0b00)>\n'
+            '  )\n'
+            '(0xC1) (0b11000001)>'
+        )

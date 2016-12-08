@@ -673,7 +673,7 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
         raise IndexError(key)
 
     # Representations
-    def _extract_string(self):
+    def _extract_string(self, indent=2):
         """Helper method for usage in __str__ for mapped cases"""
         if not self._mapping_:
             raise ValueError('Mapping is not set')
@@ -683,21 +683,24 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             val = self.__getitem__(item[0])
             # pylint: disable=protected-access
             # noinspection PyProtectedMember
-            if isinstance(val, int) or not val._mapping_:
-                return '{key}={val!s}'.format(
+            if not val._mapping_:
+                return '{spc:{indent}}{key}={val!s}'.format(
+                    spc='',
+                    indent=indent,
                     key=item[0],
                     val=val
                 )
             else:
                 # noinspection PyProtectedMember
-                return '{key}=({val})'.format(
+                return '{spc:{indent}}{key}=(\n{val}\n{spc:{indent}})'.format(
+                    spc='',
+                    indent=indent,
                     key=item[0],
-                    val=val._extract_string()
-
+                    val=val._extract_string(indent=indent + 2)
                 )
             # pylint: enable=protected-access
 
-        return ", ".join(
+        return ",\n".join(
             map(
                 makestr,
                 self._mapping_.items()
@@ -714,11 +717,13 @@ class BitField(BaseBitFieldMeta):  # noqa  # redefinition of unused 'BitField'
             )
 
         return (
-            '{data}<'.format(data=int(self)) +
-            self._extract_string() +
-            ' (0x{data:0{length}X})>'.format(
+            '{data}<\n'
+            '{members}\n'
+            '(0x{data:0{length}X}) (0b{data:0{blength}b})>'.format(
                 data=int(self),
+                members=self._extract_string(),
                 length=len(self) * 2,
+                blength=self._bit_size_
             )
         )
 
