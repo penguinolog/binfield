@@ -56,7 +56,7 @@ def _is_valid_slice(obj):
     if not valid_precondition:
         return False
     if obj.start is not None and obj.stop is not None:
-        return valid_precondition and obj.start < obj.stop
+        return valid_precondition and 0 <= obj.start < obj.stop
     return valid_precondition
 
 
@@ -68,7 +68,7 @@ def _is_valid_slice_mapping(obj):
     return (
         isinstance(obj, (tuple, list)) and len(obj) == 2 and
         isinstance(obj[0], int) and isinstance(obj[1], int) and
-        obj[0] < obj[1]
+        0 <= obj[0] < obj[1]
     )
 
 
@@ -512,7 +512,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         self.__init__(**state)  # getstate returns enough data for __init__
 
     def _get_child_cls_(self, mask, name, clsmask, size, mapping=None):
-        """
+        """Get child class with memorize support
 
         :type mask:int
         :type name: str
@@ -565,6 +565,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             mask = mask & self._mask_
 
         if item.start:
+            if self._size_ and item.start > self._size_:
+                raise IndexError(
+                    'Index {} is out of data length {}'
+                    ''.format(item, self._size_))
+
             clsmask = mask >> item.start
             mask = clsmask << item.start
             start = item.start
@@ -582,32 +587,6 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         )
         return cls((int(self) & mask) >> start, _parent=(self, start))
 
-    def _getindex_(self, item, name=None):
-        if self._size_ and item > self._size_:
-            raise IndexError(
-                'Index {} is out of data length {}'
-                ''.format(item, self._size_))
-
-        if name is None:
-            name = '{cls}_index_{index}'.format(
-                cls=self.__class__.__name__,
-                index=item
-            )
-
-        mask = 1 << item
-
-        cls = self._get_child_cls_(
-            mask=mask,
-            name=name,
-            clsmask=0b1,  # Single bit mask is always 0b1
-            size=1  # Single bit
-        )
-
-        return cls(
-            (int(self) & mask) >> item,
-            _parent=(self, item)
-        )
-
     def __getitem__(self, item):
         """Extract bits
 
@@ -616,7 +595,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :raises: IndexError
         """
         if isinstance(item, int):
-            return self._getindex_(item)
+            name = '{cls}_index_{index}'.format(
+                cls=self.__class__.__name__,
+                index=item
+            )
+            return self._getslice_(slice(item, item + 1), name=name)
 
         if _is_valid_slice(item):
             return self._getslice_(item)
@@ -632,7 +615,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         idx = self._mapping_.get(item)
         if isinstance(idx, int):
-            return self._getindex_(idx, name=item)
+            return self._getslice_(slice(idx, idx + 1), name=item)
         if isinstance(idx, slice):
             return self._getslice_(idx, name=item)
         if isinstance(idx, (tuple, list)):
@@ -650,6 +633,21 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         raise IndexError(item)
 
     def _setslice_(self, key, value):
+        """Set value by slice
+
+        :type key: slice
+        :type value: int
+        """
+        # Copy scenario
+        if key.start is None and key.stop is None:
+            if self._size_ and value.bit_length() > self._size_:
+                raise OverflowError(
+                    'Data value to set is bigger, than bitfield size: '
+                    '{} > {}'.format(value.bit_length(), self._size_)
+                )
+            self._value_ = value
+            return
+
         old_val = int(self.__getitem__(key))
 
         if self._size_ and key.stop and key.stop > self._size_:
@@ -674,6 +672,24 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         mask = int(self) ^ old_val
         self._value_ = mask | value
 
+    def _set_bit_(self, key, value):
+        """Set single bit (faster logic, than setting slice)
+
+        :type key: int
+        :type value: int
+        """
+        if value.bit_length() > 1:
+            raise ValueError(
+                'Single bit could be changed only by another single bit'
+            )
+        if self._size_ and key > self._size_:
+            raise OverflowError(
+                'Index is out of data length: '
+                '{} > {}'.format(key, self._size_))
+
+        mask = int(self) ^ (int(self) & (1 << key))
+        self._value_ = mask | value << key
+
     def __setitem__(self, key, value):
         if not isinstance(value, int):
             raise TypeError(
@@ -681,18 +697,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             )
 
         if isinstance(key, int):
-            if value.bit_length() > 1:
-                raise ValueError(
-                    'Single bit could be changed only by another single bit'
-                )
-            if self._size_ and key > self._size_:
-                raise OverflowError(
-                    'Index is out of data length: '
-                    '{} > {}'.format(key, self._size_))
-
-            mask = int(self) ^ (int(self) & (1 << key))
-            self._value_ = mask | value << key
-            return
+            return self._set_bit_(key, value)
 
         if _is_valid_slice(key):
             return self._setslice_(key, value)
@@ -722,7 +727,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # Representations
     def _extract_string(self, indent=2):
-        """Helper method for usage in __str__ for mapped cases"""
+        """Helper method for usage in __str__ for mapped cases
+
+        :type indent: int
+        """
         if not self._mapping_:
             raise ValueError('Mapping is not set')
 
@@ -748,12 +756,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
                 )
             # pylint: enable=protected-access
 
-        return ",\n".join(
-            map(
-                makestr,
-                self._mapping_.items()
-            )
-        )
+        return ",\n".join(map(makestr, self._mapping_.items()))
 
     def __str__(self):
         if not self._mapping_:

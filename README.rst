@@ -104,6 +104,8 @@ Nested mapping is supported:
     0b11110111 == bf  # Change on nested is returned to main object
 
 
+Note: *negative indexes is not supported by design!*
+
 Testing
 =======
 The main test mechanism for the package `binfield` is using `tox`.

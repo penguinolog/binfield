@@ -229,6 +229,9 @@ class BaseFunctionality(unittest.TestCase):
         with self.assertRaises(OverflowError):
             nbf[:256] = 0xBA
 
+        with self.assertRaises(OverflowError):
+            nbf[:] = 256
+
         with self.assertRaises(ValueError):
             nbf[0:1] = 2
 
