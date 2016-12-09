@@ -258,3 +258,40 @@ class BaseFunctionality(unittest.TestCase):
             '(0xC1) (0b11000001)>'
         )
         self.assertEqual(nbf[:], nbf)  # Full slice calls self-copy
+
+    def test_negative(self):
+        with self.assertRaises(TypeError):
+            class NewBinField(BinField):
+                pass
+
+            class NestedBitField(NewBinField):
+                pass
+
+        with self.assertRaises(ValueError):
+            class UnexpectedIndex(BinField):
+                _index_ = (0, 10)
+
+        with self.assertRaises(IndexError):
+            class IntersectIndexes(BinField):
+                first = (0, 2)
+                second = (1, 3)
+
+        with self.assertRaises(TypeError):
+            class IncorrectSizeType(BinField):
+                _size_ = 'Some size'
+
+        with self.assertRaises(ValueError):
+            class IncorrectSizeValue(BinField):
+                _size_ = -1
+
+        with self.assertRaises(TypeError):
+            class IncorrectMaskType(BinField):
+                _mask_ = 'Some mask'
+
+        with self.assertRaises(ValueError):
+            class IncorrectMaskValue(BinField):
+                _mask_ = -1
+
+        with self.assertRaises(TypeError):
+            class GarbageData(BinField):
+                value = 'Not recognized'

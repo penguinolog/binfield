@@ -114,7 +114,6 @@ def _get_index(val):
         return slice(*val)
     if isinstance(val, dict):
         return slice(*val['_index_'])
-    raise TypeError('Unexpected index format: {!r}'.format(val))
 
 
 def _get_idx(val):
@@ -214,6 +213,10 @@ class BinFieldMeta(type):
                 raise TypeError(
                     'Pre-defined size has invalid type: {!r}'.format(size)
                 )
+
+            if size <= 0:
+                raise ValueError('Size must be positive value !')
+
             mask_from_size = (1 << size) - 1
 
         mask = classdict.get('_mask_', mask_from_size)
@@ -223,6 +226,9 @@ class BinFieldMeta(type):
                 raise TypeError(
                     'Pre-defined mask has invalid type: {!r}'.format(mask)
                 )
+            if mask < 0:
+                raise ValueError('BitMask is strictly positive!')
+
             if size is None:
                 size = mask.bit_length()
 
