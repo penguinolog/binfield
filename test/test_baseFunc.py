@@ -185,6 +185,17 @@ class BaseFunctionality(unittest.TestCase):
         mbf['test_slc'][1] = 1
         self.assertEqual(mbf['test_slc'], 2)
 
+    def test_mask_size(self):
+        class MaskFromSize(BinField):
+            _size_ = 8
+
+        self.assertEqual(MaskFromSize()._mask_, 0b11111111)
+
+        class SizeFromMask(BinField):
+            _mask_ = 0b1111
+
+        self.assertEqual(SizeFromMask()._size_, 4)
+
     def test_positive_mapped_nested(self):
         class NestedMappedBinField(BinField):
             test_index = 0
@@ -217,6 +228,11 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(nbf, 0b11000001)  # Nested block is masked
 
+        nbf.nested_block.multiple = 3
+
+        # Nested block setter modifies original by chain
+        self.assertEqual(nbf, 0b11001101)
+
         with self.assertRaises(OverflowError):
             nbf += 100  # overflow
 
@@ -238,6 +254,12 @@ class BaseFunctionality(unittest.TestCase):
         with self.assertRaises(ValueError):
             pickle.dumps(nbf.nested_block, -1)  # Linked object
 
+        with self.assertRaises(IndexError):
+            nbf['nonexistent']
+
+        with self.assertRaises(IndexError):
+            nbf['nonexistent'] = 1
+
         nested_copy = copy.copy(nbf.nested_block)
         self.assertFalse(nested_copy is nbf.nested_block)
         # Hash will be the same due to class memorize.
@@ -246,16 +268,16 @@ class BaseFunctionality(unittest.TestCase):
         self.assertNotEqual(nbf.nested_block, nested_copy)
         # Data changed -> hash changed
         self.assertNotEqual(hash(nested_copy), hash(nbf.nested_block))
-        self.assertEqual(nbf, 0b11000001)  # Original
+        self.assertEqual(nbf, 0b11001101)  # Original
         self.assertEqual(
             str(nbf),
-            '193<\n'
+            '205<\n'
             '  test_index=1<0x01 (0b1)>,\n'
             '  nested_block=(\n'
             '    single_bit=0<0x00 (0b0)>,\n'
-            '    multiple=0<0x00 (0b00)>\n'
+            '    multiple=3<0x03 (0b11)>\n'
             '  )\n'
-            '(0xC1) (0b11000001)>'
+            '(0xCD) (0b11001101)>'
         )
         self.assertEqual(nbf[:], nbf)  # Full slice calls self-copy
 
