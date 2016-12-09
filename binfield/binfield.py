@@ -357,11 +357,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
                 obj_mask = obj._mask_
             else:
                 obj_mask = (1 << obj._bit_size_) - 1
+            # pylint: enable=protected-access
 
             mask = obj_mask ^ (self._mask_ << offset)
             val = new_value << offset
-            obj._value_ = (obj._value_ & mask) | val
-            # pylint: enable=protected-access
+            obj[:] = (int(obj) & mask) | val
         self.__value = new_value
 
     # integer methods
@@ -521,6 +521,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :param size: int
         """
         # Memorize
+        # pylint: disable=protected-access
         if (mask, name) not in self.__class__._cache_:
             cls = BinFieldMeta.makecls(
                 name=name,
@@ -529,7 +530,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
                 size=size
             )
             self.__class__._cache_[(mask, name)] = cls
-        return self.__class__._cache_[(mask, name)]
+        cls = self.__class__._cache_[(mask, name)]
+        # pylint: enable=protected-access
+        return cls
 
     # Access as dict
     def _getslice_(self, item, mapping=None, name=None):
@@ -540,6 +543,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :type name: str
         :rtype: BinField
         """
+        if item.start is None and item.stop is None:
+            return self.__copy__()
+
         if name is None:
             name = '{cls}_slice_{start!s}_{stop!s}'.format(
                 cls=self.__class__.__name__,
@@ -646,21 +652,23 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def _setslice_(self, key, value):
         old_val = int(self.__getitem__(key))
 
-        if self._size_ and key.stop > self._size_:
+        if self._size_ and key.stop and key.stop > self._size_:
             raise OverflowError(
                 'Stop index is out of data length: '
                 '{} > {}'.format(key.stop, self._size_)
             )
 
+        stop = key.stop if key.stop else self._size_
+
         if key.start:
-            length = key.stop - key.start
+            length = stop - key.start
             if value.bit_length() > length:
                 raise ValueError('Data size is bigger, than slice')
             mask = int(self) ^ (old_val << key.start)
             self._value_ = mask | value << key.start
             return
 
-        if value.bit_length() > key.stop:
+        if stop and value.bit_length() > stop:
             raise ValueError('Data size is bigger, than slice')
 
         mask = int(self) ^ old_val
@@ -693,7 +701,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return self._setslice_(slice(*key), value)
 
         if not isinstance(key, str):
-            raise IndexError()
+            raise IndexError(key)
 
         if self._mapping_ is None:
             raise IndexError("Mapping is not available")

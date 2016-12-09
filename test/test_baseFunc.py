@@ -254,3 +254,4 @@ class BaseFunctionality(unittest.TestCase):
             '  )\n'
             '(0xC1) (0b11000001)>'
         )
+        self.assertEqual(nbf[:], nbf)  # Full slice calls self-copy
