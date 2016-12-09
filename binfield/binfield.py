@@ -618,8 +618,6 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return self._getslice_(slice(idx, idx + 1), name=item)
         if isinstance(idx, slice):
             return self._getslice_(idx, name=item)
-        if isinstance(idx, (tuple, list)):
-            return self._getslice_(slice(*idx), name=item)
 
         if isinstance(idx, dict):  # Nested _mapping_
             # Extract slice
@@ -691,6 +689,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         self._value_ = mask | value << key
 
     def __setitem__(self, key, value):
+        """Indexed setter
+
+        :type key: union(str, int, slice, list, tuple)
+        :type value: int
+        """
         if not isinstance(value, int):
             raise TypeError(
                 'BinField value could be set only as int'
@@ -712,7 +715,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             raise IndexError("Mapping is not available")
 
         idx = self._mapping_.get(key)
-        if isinstance(idx, (int, slice, tuple)):
+        if isinstance(idx, (int, slice)):
             return self.__setitem__(idx, value)
 
         if isinstance(
