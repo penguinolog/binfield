@@ -5,6 +5,7 @@ import unittest
 from binfield import BinField
 
 
+# noinspection PyStatementEffect
 class BaseFunctionality(unittest.TestCase):
     def test_not_mapped_no_len(self):
         test_value = 42
@@ -26,7 +27,9 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(bf._bit_size_, test_value.bit_length())
         self.assertEqual(bf._value_, test_value)
+        # noinspection PyUnresolvedReferences
         self.assertIsNone(bf._mapping_)
+        # noinspection PyUnresolvedReferences
         self.assertIsNone(bf._mask_)
 
         self.assertEqual(int(bf), test_value)
@@ -196,6 +199,14 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(SizeFromMask()._size_, 4)
 
+    def test_slice_no_start(self):
+        class NoStartIndex(BinField):
+            # noinspection PyTypeChecker
+            start = slice(None, 2)
+
+        bf = NoStartIndex(0xFF)
+        self.assertEqual(bf.start, 3)
+
     def test_positive_mapped_nested(self):
         class NestedMappedBinField(BinField):
             test_index = 0
@@ -218,6 +229,7 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(nbf, 0b11111111)  # Mask not recalculated
         self.assertEqual(nbf.nested_block, 0b00011111)  # Index was used
+        # noinspection PyUnresolvedReferences
         self.assertEqual(nbf.nested_block.single_bit, 0b1)
         self.assertEqual(nbf.nested_block.multiple, 0b11)
 
@@ -286,34 +298,42 @@ class BaseFunctionality(unittest.TestCase):
             class NewBinField(BinField):
                 pass
 
+            # noinspection PyUnusedLocal
             class NestedBitField(NewBinField):
                 pass
 
         with self.assertRaises(ValueError):
+            # noinspection PyUnusedLocal
             class UnexpectedIndex(BinField):
                 _index_ = (0, 10)
 
         with self.assertRaises(IndexError):
+            # noinspection PyUnusedLocal
             class IntersectIndexes(BinField):
                 first = (0, 2)
                 second = (1, 3)
 
         with self.assertRaises(TypeError):
+            # noinspection PyUnusedLocal
             class IncorrectSizeType(BinField):
                 _size_ = 'Some size'
 
         with self.assertRaises(ValueError):
+            # noinspection PyUnusedLocal
             class IncorrectSizeValue(BinField):
                 _size_ = -1
 
         with self.assertRaises(TypeError):
+            # noinspection PyUnusedLocal
             class IncorrectMaskType(BinField):
                 _mask_ = 'Some mask'
 
         with self.assertRaises(ValueError):
+            # noinspection PyUnusedLocal
             class IncorrectMaskValue(BinField):
                 _mask_ = -1
 
         with self.assertRaises(TypeError):
+            # noinspection PyUnusedLocal
             class GarbageData(BinField):
                 value = 'Not recognized'

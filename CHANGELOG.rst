@@ -1,5 +1,13 @@
 CHANGELOG
 =========
+Version 0.1.2
+-------------
+* Check for negative indexes
+
+* Code optimizations
+
+* Extend checks
+
 Version 0.1.1
 -------------
 * Class memorization
