@@ -55,7 +55,7 @@ def _is_valid_slice(obj):
     valid_precondition = isinstance(obj, slice) and obj.step is None
     if not valid_precondition:
         return False
-    if obj.start is not None:
+    if obj.start is not None and obj.stop is not None:
         return valid_precondition and obj.start < obj.stop
     return valid_precondition
 
@@ -207,19 +207,24 @@ class BinFieldMeta(type):
             classdict[m_key] = _make_mapping_property(m_key)
 
         size = classdict.get('_size_', None)
-        mask = classdict.get('_mask_', None)
+        mask_from_size = None
 
-        if size is not None and not isinstance(size, int):
-            raise TypeError(
-                'Pre-defined size has invalid type: {!r}'.format(size)
-            )
-        if mask is not None and not isinstance(mask, int):
-            raise TypeError(
-                'Pre-defined mask has invalid type: {!r}'.format(mask)
-            )
+        if size is not None:
+            if not isinstance(size, int):
+                raise TypeError(
+                    'Pre-defined size has invalid type: {!r}'.format(size)
+                )
+            mask_from_size = (1 << size) - 1
 
-        if size is None and mask is not None:
-            size = mask.bit_length()
+        mask = classdict.get('_mask_', mask_from_size)
+
+        if mask is not None:
+            if not isinstance(mask, int):
+                raise TypeError(
+                    'Pre-defined mask has invalid type: {!r}'.format(mask)
+                )
+            if size is None:
+                size = mask.bit_length()
 
         classdict['_size_'] = property(
             fget=lambda _: size,
@@ -258,10 +263,12 @@ class BinFieldMeta(type):
                 doc="""Read-only mapping structure"""
             )
 
+        classdict['_cache_'] = {}  # Use for subclasses memorize
+
         return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
     @classmethod
-    def makecls(mcs, name, mapping=None, mask=None, length=None):
+    def makecls(mcs, name, mapping=None, mask=None, size=None):
         """Create new BinField subclass
 
         :param name: Class name
@@ -270,17 +277,17 @@ class BinFieldMeta(type):
         :type mapping: dict
         :param mask: Data mask for new class
         :type mask: int
-        :param length: BinField bit length
-        :type length: int
+        :param size: BinField bit length
+        :type size: int
         :returns: BinField subclass
         """
         if mapping is not None:
             classdict = mapping
-            classdict['_size_'] = length
+            classdict['_size_'] = size
             classdict['_mask_'] = mask
             classdict['__slots__'] = ()
         else:
-            classdict = {'_size_': length, '_mask_': mask, '__slots__': ()}
+            classdict = {'_size_': size, '_mask_': mask, '__slots__': ()}
         return mcs.__new__(mcs, name, (BinField, ), classdict)
 
 
@@ -294,6 +301,8 @@ BaseBinFieldMeta = BinFieldMeta.__new__(
 class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     """BinField representation"""
     __slots__ = ['__value', '__parent_link', '__dict__']
+
+    _cache_ = {}  # Will be replaced by the same by metaclass, but helps lint
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
@@ -502,6 +511,26 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def __setstate__(self, state):
         self.__init__(**state)  # getstate returns enough data for __init__
 
+    def _get_child_cls_(self, mask, name, clsmask, size, mapping=None):
+        """
+
+        :type mask:int
+        :type name: str
+        :type mapping: dict
+        :param clsmask: int
+        :param size: int
+        """
+        # Memorize
+        if (mask, name) not in self.__class__._cache_:
+            cls = BinFieldMeta.makecls(
+                name=name,
+                mapping=mapping,
+                mask=clsmask,
+                size=size
+            )
+            self.__class__._cache_[(mask, name)] = cls
+        return self.__class__._cache_[(mask, name)]
+
     # Access as dict
     def _getslice_(self, item, mapping=None, name=None):
         """Get slice from self
@@ -520,8 +549,8 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         stop = (
             item.stop
-            if (not self._size_ or item.stop < self._size_)
-            else self._size_
+            if item.stop and (not self._size_ or item.stop < self._size_)
+            else self._bit_size_
         )
 
         mask = (1 << stop) - 1
@@ -530,25 +559,48 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             mask = mask & self._mask_
 
         if item.start:
-            mask = mask >> item.start << item.start
-            cls = BinFieldMeta.makecls(
-                name=name,
-                mapping=mapping,
-                mask=mask >> item.start,
-                length=stop - item.start
-            )
-            return cls(
-                (int(self) & mask) >> item.start,
-                _parent=(self, item.start)
+            clsmask = mask >> item.start
+            mask = clsmask << item.start
+            start = item.start
+        else:
+            clsmask = mask
+            start = 0
+
+        # Memorize
+        cls = self._get_child_cls_(
+            mask=mask,
+            name=name,
+            clsmask=clsmask,
+            size=stop - start,
+            mapping=mapping,
+        )
+        return cls((int(self) & mask) >> start, _parent=(self, start))
+
+    def _getindex_(self, item, name=None):
+        if self._size_ and item > self._size_:
+            raise IndexError(
+                'Index {} is out of data length {}'
+                ''.format(item, self._size_))
+
+        if name is None:
+            name = '{cls}_index_{index}'.format(
+                cls=self.__class__.__name__,
+                index=item
             )
 
-        cls = BinFieldMeta.makecls(
-            name=name,
-            mapping=mapping,
+        mask = 1 << item
+
+        cls = self._get_child_cls_(
             mask=mask,
-            length=stop
+            name=name,
+            clsmask=0b1,  # Single bit mask is always 0b1
+            size=1  # Single bit
         )
-        return cls(int(self) & mask, _parent=(self, 0))
+
+        return cls(
+            (int(self) & mask) >> item,
+            _parent=(self, item)
+        )
 
     def __getitem__(self, item):
         """Extract bits
@@ -558,26 +610,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :raises: IndexError
         """
         if isinstance(item, int):
-            # Single bit return as integer
-            if self._size_ and item > self._size_:
-                raise IndexError(
-                    'Index {} is out of data length {}'
-                    ''.format(item, self._size_))
-
-            name = '{cls}_index_{index}'.format(
-                cls=self.__class__.__name__,
-                index=item
-            )
-
-            cls = BinFieldMeta.makecls(
-                name=name,
-                mask=0b1,
-                length=1
-            )
-            return cls(
-                (int(self) & (1 << item)) >> item,
-                _parent=(self, item)
-            )
+            return self._getindex_(item)
 
         if _is_valid_slice(item):
             return self._getslice_(item)
@@ -592,8 +625,13 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             raise IndexError("Mapping is not available")
 
         idx = self._mapping_.get(item)
-        if isinstance(idx, (int, slice, tuple, list)):
-            return self.__getitem__(idx)
+        if isinstance(idx, int):
+            return self._getindex_(idx, name=item)
+        if isinstance(idx, slice):
+            return self._getslice_(idx, name=item)
+        if isinstance(idx, (tuple, list)):
+            return self._getslice_(slice(*idx), name=item)
+
         if isinstance(idx, dict):  # Nested _mapping_
             # Extract slice
             slc = slice(*idx['_index_'])
