@@ -81,6 +81,9 @@ def _mapping_filter(item):
     """
     name, obj = item
 
+    if not isinstance(name, str):
+        return False
+
     if name in {'_index_'}:
         return True
 
@@ -116,42 +119,110 @@ def _get_index(val):
         return slice(*val['_index_'])
 
 
-def _get_idx(val):
-    """Get bit indexes
+def _get_mask(start, end):
+    """Make default mask
 
-    :rtype: set
+    :type start: int
+    :type end:  int
+    :rtype: int
     """
-    if isinstance(val, int):
-        return {val}
-    val = _get_index(val)
-    if val.start is not None:
-        return set(range(val.start, val.stop))
-    return set(range(val.stop))
-
-
-def _check_indexes(mapping):
-    """Check indexes for intersections"""
-    global_index = set()
-    for key, val in mapping.items():
-        index = _get_idx(val)
-        if global_index - index != global_index:
-            raise IndexError(
-                'Mapping key {key} has intersection with other keys '
-                'on indexes {indexes}'.format(
-                    key=key,
-                    indexes=list(sorted(index - global_index))
-                ))
-        global_index |= index
+    return (1 << end) - (1 << start)
 
 
 def _get_start_index(src):
     """Internal method for sorting mapping
 
+    :param src: tuple from dict.items()
+    :type src: tuple
     :rtype: int
     """
     if isinstance(src[1], int):
         return src[1]
     return _get_index(src[1]).start
+
+
+def _prepare_mapping(mapping):
+    """Check indexes for intersections
+
+    :type mapping: dict
+    :rtype: collections.OrderedDict
+    """
+    mapping_mask = 0
+    new_mapping = collections.OrderedDict()
+    cycle_end = False
+
+    # pylint: disable=undefined-loop-variable
+    def check_update_mapping_mask(mask):
+        """Check mask for validity and return updated value
+
+        :type mask: int
+        :rtype: int
+        """
+        if mapping_mask & mask != 0:
+            raise IndexError(
+                'Mapping key {key} has intersection with other keys '
+                'by mask {mask:b}'.format(
+                    key=m_key,
+                    mask=mapping_mask & mask
+                ))
+        return mapping_mask | mask
+
+    # pylint: enable=undefined-loop-variable
+
+    if '_index_' in mapping:
+        new_mapping['_index_'] = mapping.pop('_index_')
+
+    unexpected = list(filter(
+        lambda item: not _mapping_filter(item),
+        mapping.items(),
+    ))
+    if unexpected:
+        raise ValueError(
+            'Mapping contains unexpected data: '
+            '{!r}'.format(unexpected))
+
+    for m_key, m_val in sorted(
+        mapping.items(),
+        key=_get_start_index
+    ):
+        if cycle_end:
+            raise IndexError(
+                'Mapping after non-ending slice index! '
+                'First key: {}'.format(m_key))
+
+        if isinstance(m_val, (list, tuple)):
+            new_mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
+            mapping_mask = check_update_mapping_mask(_get_mask(*m_val))
+        elif isinstance(m_val, int):
+            mapping_mask = check_update_mapping_mask(
+                _get_mask(m_val, m_val + 1)
+            )
+            new_mapping[m_key] = m_val
+        elif isinstance(m_val, dict):  # nested mapping
+            mapping_mask = check_update_mapping_mask(
+                _get_mask(*m_val['_index_'])
+            )
+            new_mapping[m_key] = _prepare_mapping(m_val)
+        else:
+            if m_val.stop:
+                mapping_mask = check_update_mapping_mask(
+                    _get_mask(
+                        m_val.start if m_val.start else 0,
+                        m_val.stop
+                    )
+                )
+            else:
+                if mapping_mask & (1 << m_val.start) != 0:
+                    raise IndexError(
+                        'Mapping key {key} has intersection '
+                        'with other keys by mask {mask:b}'.format(
+                            key=m_key,
+                            mask=mapping_mask & (1 << m_val.start)
+                        ))
+                cycle_end = True
+            new_mapping[m_key] = m_val
+
+    return new_mapping
 
 
 def _make_mapping_property(key):
@@ -191,21 +262,7 @@ class BinFieldMeta(type):
                 '_index_ is reserved index for slicing nested BinFields'
             )
 
-        mapping = collections.OrderedDict()
-        for m_key, m_val in sorted(
-            filter(
-                _mapping_filter,
-                classdict.copy().items()
-            ),
-            key=_get_start_index
-        ):
-            if isinstance(m_val, (list, tuple)):
-                mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
-            else:
-                mapping[m_key] = m_val
-            classdict[m_key] = _make_mapping_property(m_key)
-
-        size = classdict.get('_size_', None)
+        size = classdict.pop('_size_', None)
         mask_from_size = None
 
         if size is not None:
@@ -219,7 +276,7 @@ class BinFieldMeta(type):
 
             mask_from_size = (1 << size) - 1
 
-        mask = classdict.get('_mask_', mask_from_size)
+        mask = classdict.pop('_mask_', mask_from_size)
 
         if mask is not None:
             if not isinstance(mask, int):
@@ -242,6 +299,21 @@ class BinFieldMeta(type):
             doc="""Read-only data binary mask"""
         )
 
+        mapping = classdict.pop('_mapping_', None)
+
+        if mapping is None:
+            mapping = {}
+
+            for m_key, m_val in filter(
+                    _mapping_filter,
+                    classdict.copy().items()
+            ):
+                if isinstance(m_val, (list, tuple)):
+                    mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
+                else:
+                    mapping[m_key] = m_val
+                del classdict[m_key]
+
         garbage = {
             name: obj for name, obj in classdict.items()
             if not (
@@ -255,13 +327,16 @@ class BinFieldMeta(type):
                 '{!r}'.format(garbage)
             )
 
-        if mapping:
-            _check_indexes(mapping)
+        ready_mapping = _prepare_mapping(mapping)
 
+        if ready_mapping:
             classdict['_mapping_'] = property(
-                fget=lambda _: copy.deepcopy(mapping),
+                fget=lambda _: copy.deepcopy(ready_mapping),
                 doc="""Read-only mapping structure"""
             )
+
+            for m_key in ready_mapping:
+                classdict[m_key] = _make_mapping_property(m_key)
 
         else:
             classdict['_mapping_'] = property(
@@ -287,13 +362,13 @@ class BinFieldMeta(type):
         :type size: int
         :returns: BinField subclass
         """
+        classdict = {
+            '_size_': size,
+            '_mask_': mask,
+            '__slots__': ()
+        }
         if mapping is not None:
-            classdict = mapping
-            classdict['_size_'] = size
-            classdict['_mask_'] = mask
-            classdict['__slots__'] = ()
-        else:
-            classdict = {'_size_': size, '_mask_': mask, '__slots__': ()}
+            classdict['_mapping_'] = mapping
         return mcs.__new__(mcs, name, (BinField, ), classdict)
 
 
@@ -552,6 +627,12 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if item.start is None and item.stop is None:
             return self.__copy__()
 
+        if item.start:
+            if self._size_ and item.start > self._size_:
+                raise IndexError(
+                    'Index {} is out of data length {}'
+                    ''.format(item, self._size_))
+
         if name is None:
             name = '{cls}_slice_{start!s}_{stop!s}'.format(
                 cls=self.__class__.__name__,
@@ -565,23 +646,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             else self._bit_size_
         )
 
-        mask = (1 << stop) - 1
+        start = item.start if item.start else 0
+
+        mask = _get_mask(start, stop)
 
         if self._mask_ is not None:
-            mask = mask & self._mask_
+            mask &= self._mask_
 
-        if item.start:
-            if self._size_ and item.start > self._size_:
-                raise IndexError(
-                    'Index {} is out of data length {}'
-                    ''.format(item, self._size_))
-
-            clsmask = mask >> item.start
-            mask = clsmask << item.start
-            start = item.start
-        else:
-            clsmask = mask
-            start = 0
+        clsmask = mask >> start
 
         # Memorize
         cls = self._get_child_cls_(
@@ -652,29 +724,28 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             self._value_ = value
             return
 
-        old_val = int(self.__getitem__(key))
-
         if self._size_ and key.stop and key.stop > self._size_:
             raise OverflowError(
                 'Stop index is out of data length: '
                 '{} > {}'.format(key.stop, self._size_)
             )
 
-        stop = key.stop if key.stop else self._size_
+        stop = key.stop if key.stop else self._bit_size_
+        start = key.start if key.start else 0
 
-        if key.start:
-            length = stop - key.start
-            if value.bit_length() > length:
-                raise ValueError('Data size is bigger, than slice')
-            mask = int(self) ^ (old_val << key.start)
-            self._value_ = mask | value << key.start
-            return
-
-        if stop and value.bit_length() > stop:
+        if value.bit_length() > stop:
             raise ValueError('Data size is bigger, than slice')
+        if key.start:
+            if value.bit_length() > stop - start:
+                raise ValueError('Data size is bigger, than slice')
 
-        mask = int(self) ^ old_val
-        self._value_ = mask | value
+        value <<= start  # Get correct binary position
+
+        get_mask = _get_mask(start, stop)
+        if self._mask_:
+            get_mask &= self._mask_
+
+        self._value_ = self._value_ ^ self._value_ & get_mask | value
 
     def _set_bit_(self, key, value):
         """Set single bit (faster logic, than setting slice)
