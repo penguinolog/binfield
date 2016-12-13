@@ -233,7 +233,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(nbf.nested_block.single_bit, 0b1)
         self.assertEqual(nbf.nested_block.multiple, 0b11)
 
-        self.assertIsInstance(nbf + 1, int)  # owerflow _size_
+        self.assertIsInstance(nbf + 1, int)  # overflow _size_
         self.assertEqual(nbf + 1, 256)
 
         nbf.nested_block = 0
@@ -295,10 +295,12 @@ class BaseFunctionality(unittest.TestCase):
 
     def test_negative(self):
         with self.assertRaises(ValueError):
+            # noinspection PyUnusedLocal
             class InvalidMappingKey(BinField):
                 _mapping_ = {0: 1}
 
         with self.assertRaises(ValueError):
+            # noinspection PyUnusedLocal
             class UnexpectedMappingKey(BinField):
                 _mapping_ = {'_key_': 1}
 
@@ -316,6 +318,7 @@ class BaseFunctionality(unittest.TestCase):
                 _index_ = (0, 10)
 
         with self.assertRaises(IndexError):
+            # noinspection PyUnusedLocal
             class MapContinueAfterInfinite(BinField):
                 a = 0
                 b = slice(1, None)
