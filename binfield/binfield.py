@@ -172,10 +172,10 @@ def _prepare_mapping(mapping):
     if '_index_' in mapping:
         new_mapping['_index_'] = mapping.pop('_index_')
 
-    unexpected = list(filter(
-        lambda item: not _mapping_filter(item),
-        mapping.items(),
-    ))
+    unexpected = [
+        item for item in mapping.items() if not _mapping_filter(item)
+    ]
+
     if unexpected:
         raise ValueError(
             'Mapping contains unexpected data: '
