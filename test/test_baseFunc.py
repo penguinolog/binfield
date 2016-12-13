@@ -135,7 +135,7 @@ class BaseFunctionality(unittest.TestCase):
             bf['test'] = 10  # no mapping
 
         with self.assertRaises(ValueError):
-            bf[0:2] = 10  # bigger, than slice
+            bf[19:20] = 10  # bigger, than slice
 
         with self.assertRaises(ValueError):
             bf[:2] = 10  # bigger, than slice
@@ -294,6 +294,14 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(nbf[:], nbf)  # Full slice calls self-copy
 
     def test_negative(self):
+        with self.assertRaises(ValueError):
+            class InvalidMappingKey(BinField):
+                _mapping_ = {0: 1}
+
+        with self.assertRaises(ValueError):
+            class UnexpectedMappingKey(BinField):
+                _mapping_ = {'_key_': 1}
+
         with self.assertRaises(TypeError):
             class NewBinField(BinField):
                 pass
@@ -308,10 +316,22 @@ class BaseFunctionality(unittest.TestCase):
                 _index_ = (0, 10)
 
         with self.assertRaises(IndexError):
+            class MapContinueAfterInfinite(BinField):
+                a = 0
+                b = slice(1, None)
+                c = 2
+
+        with self.assertRaises(IndexError):
             # noinspection PyUnusedLocal
             class IntersectIndexes(BinField):
                 first = (0, 2)
                 second = (1, 3)
+
+        with self.assertRaises(IndexError):
+            # noinspection PyUnusedLocal
+            class IntersectIndexesSlice(BinField):
+                first = (0, 2)
+                second = slice(1, None)
 
         with self.assertRaises(TypeError):
             # noinspection PyUnusedLocal
