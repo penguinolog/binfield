@@ -1,5 +1,11 @@
 CHANGELOG
 =========
+Version 0.2.0
+-------------
+* Optimizations
+
+* Add binary record information as comment for repr
+
 Version 0.1.2
 -------------
 * Check for negative indexes

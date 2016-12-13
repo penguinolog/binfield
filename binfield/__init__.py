@@ -15,5 +15,5 @@
 
 from .binfield import BinField
 
-__version__ = '0.1.2'
+__version__ = '0.2.0'
 __author__ = "Alexey Stepanov <penguinolog@gmail.com>"
