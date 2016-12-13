@@ -73,7 +73,7 @@ def _is_valid_slice_mapping(obj):
 
 
 def _mapping_filter(item):
-    """Filter for namig records from namespace
+    """Filter for naming records from namespace
 
     :param item: namespace item
     :type item: tuple
@@ -811,9 +811,6 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :type indent: int
         """
-        if not self._mapping_:
-            raise ValueError('Mapping is not set')
-
         def makestr(item):
             """Make string from mapping element"""
             val = self.__getitem__(item[0])
@@ -854,16 +851,17 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
                 data=int(self),
                 members=self._extract_string(),
                 length=len(self) * 2,
-                blength=self._bit_size_
+                blength=self._bit_size_,
             )
         )
 
     def __repr__(self):
         return (
-            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
+            '{cls}(x=0x{x:0{len}X}, base=16)  # 0b{x:0{blength}b}'.format(
                 cls=self.__class__.__name__,
                 x=int(self),
                 len=len(self) * 2,
+                blength=self._bit_size_,
             ))
 
     def __dir__(self):

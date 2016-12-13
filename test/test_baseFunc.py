@@ -14,10 +14,11 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(
             repr(bf),
-            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
+            '{cls}(x=0x{x:0{len}X}, base=16)  # 0b{x:0{blength}b}'.format(
                 cls=bf.__class__.__name__,
                 x=int(bf),
                 len=len(bf) * 2,
+                blength=bf._bit_size_,
             )
         )
 
@@ -162,10 +163,11 @@ class BaseFunctionality(unittest.TestCase):
 
         self.assertEqual(
             repr(mbf),
-            '{cls}(x=0x{x:0{len}X}, base=16)'.format(
+            '{cls}(x=0x{x:0{len}X}, base=16)  # 0b{x:0{blength}b}'.format(
                 cls=mbf.__class__.__name__,
                 x=int(mbf),
                 len=len(mbf) * 2,
+                blength=mbf._bit_size_
             )
         )
 
