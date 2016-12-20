@@ -445,12 +445,6 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             obj[:] = (int(obj) & mask) | val
         self.__value = new_value
 
-    @property
-    def _parent_(self):
-        if self.__parent_link:
-            return self.__parent_link[0]
-        return None
-
     # integer methods
     def __int__(self):
         return self._value_
