@@ -445,6 +445,12 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             obj[:] = (int(obj) & mask) | val
         self.__value = new_value
 
+    @property
+    def _parent_(self):
+        if self.__parent_link:
+            return self.__parent_link[0]
+        return None
+
     # integer methods
     def __int__(self):
         return self._value_
@@ -476,12 +482,15 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return int(self) == other
 
         # As BinField
-        # noinspection PyProtectedMember
-        return (
-            int(self) == int(other) and
-            self._mapping_ == other._mapping_ and
-            len(self) == len(other)
-        )
+        try:
+            # noinspection PyProtectedMember
+            return (
+                int(self) == int(other) and
+                self._mapping_ == other._mapping_ and
+                len(self) == len(other)
+            )
+        except TypeError:
+            return False
 
     # pylint: enable=protected-access
 
@@ -845,33 +854,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         indent = 0 if no_indent_start else indent
         indent_step = 2 if parser is None else parser.indent_step
 
-        if not self._mapping_:
-            # bit length is re-calculated to align bytes
-            return (
-                '{spc:<{indent}}'
-                '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
-                    spc='',
-                    indent=indent,
-                    data=int(self),
-                    length=len(self) * 2,
-                    blength=self._bit_size_
-                ))
-
-        return (
-            '{data}<\n'
-            '{members}\n'
-            '(0x{data:0{length}X}) (0b{data:0{blength}b})>'.format(
-                data=int(self),
-                members=self._extract_string(
-                    indent=indent + indent_step,  # Nested data indented
-                    indent_step=indent_step,
-                ),
-                length=len(self) * 2,
-                blength=self._bit_size_,
-            )
+        formatter = _Formatter(indent_step=indent_step)
+        return formatter.process_element(
+            src=self,
+            indent=indent
         )
 
     def __str__(self):
+        # noinspection PyTypeChecker
         return self.__pretty_str__(None, 0, True)
 
     def __pretty_repr__(
@@ -909,6 +899,119 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return (
             ['_bit_size_', '_mapping_', '_mask_', '_value_'] + keys
         )
+
+
+class _Formatter(object):
+    def __init__(
+        self,
+        indent_step=4,
+    ):
+        """BinField dedicated str formatter
+
+        :type indent_step: int
+        """
+        self.__indent_step = indent_step
+
+    @property
+    def indent_step(self):
+        """Indent step getter
+
+        :rtype: int
+        """
+        return self.__indent_step
+
+    def next_indent(self, indent, doubled=False):
+        """Next indentation value
+
+        :param indent: current indentation value
+        :type indent: int
+        :param doubled: use double step instead of single
+        :type doubled: bool
+        :rtype: int
+        """
+        mult = 1 if not doubled else 2
+        return indent + mult * self.indent_step
+
+    def _str_bf_items(self, src, indent=0):
+        """repr dict items
+
+        :param src: object to process
+        :type src: dict
+        :param indent: start indentation
+        :type indent: int
+        :rtype: generator
+        """
+        max_len = max([len(str(key)) for key in src]) if src else 0
+        for key, val in src.items():
+            yield "\n{spc:<{indent}}{key!s:{size}} = {val}".format(
+                spc='',
+                indent=self.next_indent(indent),
+                size=max_len,
+                key=key,
+                val=self.process_element(
+                    val,
+                    indent=self.next_indent(indent, doubled=True),
+                    no_indent_start=True
+                )
+            )
+
+    # pylint: disable=protected-access
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    def process_element(self, src, indent=0, no_indent_start=False):
+        """Make human readable representation of object
+
+        :param src: object to process
+        :type src: BinField
+        :param indent: start indentation
+        :type indent: int
+        :param no_indent_start:
+            do not indent open bracket and simple parameters
+        :type no_indent_start: bool
+        :return: formatted string
+        :rtype: str
+        """
+        if src._mask_ is None:
+            mask = ''
+        else:
+            mask = ' & 0b{:b}'.format(src._mask_)
+
+        if src._mapping_:
+            as_dict = collections.OrderedDict(
+                ((key, src[key]) for key in src._mapping_)
+            )
+            result = ''.join(self._str_bf_items(src=as_dict, indent=indent))
+
+            return (
+                "{nl}"
+                "{spc:<{indent}}"
+                "{data}<0x{data:0{length}X} (0b{data:0{blength}b}{mask})"
+                "{result}\n"
+                "{spc:<{indent}}>".format(
+                    nl='\n' if no_indent_start else '',
+                    spc='',
+                    indent=indent,
+                    data=int(src),
+                    length=len(src) * 2,
+                    blength=src._bit_size_,
+                    mask=mask,
+                    result=result,
+                )
+            )
+
+        indent = 0 if no_indent_start else indent
+        return (
+            '{spc:<{indent}}'
+            '{data}<0x{data:0{length}X} (0b{data:0{blength}b}{mask})>'
+            ''.format(
+                spc='',
+                indent=indent,
+                data=int(src),
+                length=len(src) * 2,
+                blength=src._bit_size_,
+                mask=mask
+            )
+        )
+    # pylint: enable=protected-access
 
 
 __all__ = ['BinField']
