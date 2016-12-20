@@ -44,6 +44,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertLessEqual(bf, test_value)
         self.assertEqual(bf, test_value)
         self.assertNotEqual(bf, 0)
+        self.assertNotEqual(bf, 'zero')  # Different type
 
         self.assertEqual(bool(bf), True)
 

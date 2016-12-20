@@ -480,18 +480,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         # As integer
         if isinstance(other, int):
             return int(self) == other
-
-        # As BinField
-        try:
-            # noinspection PyProtectedMember
+        if isinstance(other, BinField):
+            # noinspection PyUnresolvedReferences,PyProtectedMember
             return (
                 int(self) == int(other) and
                 self._mapping_ == other._mapping_ and
                 len(self) == len(other)
             )
-        except TypeError:
-            return False
-
+        return False
     # pylint: enable=protected-access
 
     def __ne__(self, other):
@@ -815,36 +811,6 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         raise IndexError(key)
 
     # Representations
-    def _extract_string(self, indent=2, indent_step=2):
-        """Helper method for usage in __str__ for mapped cases
-
-        :type indent: int
-        """
-        def makestr(item):
-            """Make string from mapping element"""
-            val = self.__getitem__(item[0])
-            # pylint: disable=protected-access
-            # noinspection PyProtectedMember,PyUnresolvedReferences
-            if not val._mapping_:
-                return '{spc}{key}={val!s}'.format(
-                    spc=' ' * indent,
-                    key=item[0],
-                    val=val
-                )
-            else:
-                # noinspection PyProtectedMember
-                return '{spc}{key}=(\n{val!s}\n{spc})'.format(
-                    spc=' ' * indent,
-                    key=item[0],
-                    val=val._extract_string(
-                        indent=indent + indent_step,
-                        indent_step=indent_step
-                    )
-                )
-            # pylint: enable=protected-access
-
-        return ",\n".join(map(makestr, self._mapping_.items()))
-
     def __pretty_str__(
         self,
         parser,
