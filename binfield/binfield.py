@@ -806,7 +806,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         raise IndexError(key)
 
     # Representations
-    def _extract_string(self, indent=2):
+    def _extract_string(self, indent=2, indent_step=2):
         """Helper method for usage in __str__ for mapped cases
 
         :type indent: int
@@ -817,52 +817,89 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             # pylint: disable=protected-access
             # noinspection PyProtectedMember,PyUnresolvedReferences
             if not val._mapping_:
-                return '{spc:{indent}}{key}={val!s}'.format(
-                    spc='',
-                    indent=indent,
+                return '{spc}{key}={val!s}'.format(
+                    spc=' ' * indent,
                     key=item[0],
                     val=val
                 )
             else:
                 # noinspection PyProtectedMember
-                return '{spc:{indent}}{key}=(\n{val}\n{spc:{indent}})'.format(
-                    spc='',
-                    indent=indent,
+                return '{spc}{key}=(\n{val!s}\n{spc})'.format(
+                    spc=' ' * indent,
                     key=item[0],
-                    val=val._extract_string(indent=indent + 2)
+                    val=val._extract_string(
+                        indent=indent + indent_step,
+                        indent_step=indent_step
+                    )
                 )
             # pylint: enable=protected-access
 
         return ",\n".join(map(makestr, self._mapping_.items()))
 
-    def __str__(self):
+    def __pretty_str__(
+        self,
+        parser,
+        indent,
+        no_indent_start
+    ):
+        indent = 0 if no_indent_start else indent
+        indent_step = 2 if parser is None else parser.indent_step
+
         if not self._mapping_:
             # bit length is re-calculated to align bytes
-            return '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
-                data=int(self),
-                length=len(self) * 2,
-                blength=self._bit_size_
-            )
+            return (
+                '{spc:<{indent}}'
+                '{data}<0x{data:0{length}X} (0b{data:0{blength}b})>'.format(
+                    spc='',
+                    indent=indent,
+                    data=int(self),
+                    length=len(self) * 2,
+                    blength=self._bit_size_
+                ))
 
         return (
             '{data}<\n'
             '{members}\n'
             '(0x{data:0{length}X}) (0b{data:0{blength}b})>'.format(
                 data=int(self),
-                members=self._extract_string(),
+                members=self._extract_string(
+                    indent=indent + indent_step,  # Nested data indented
+                    indent_step=indent_step,
+                ),
                 length=len(self) * 2,
                 blength=self._bit_size_,
             )
         )
 
-    def __repr__(self):
+    def __str__(self):
+        return self.__pretty_str__(None, 0, True)
+
+    def __pretty_repr__(
+        self,
+        _,
+        indent,
+        no_indent_start
+    ):
+        indent = 0 if no_indent_start else indent
+        if self.__parent_link:
+            pre = '<'
+            post = ' at 0x{:X}>'.format(id(self))
+        else:
+            pre = post = ''
         return (
-            '{cls}(x=0x{x:0{len}X}, base=16)  # 0b{x:0{blength}b}'.format(
+            '{spc:<{indent}}{pre}{cls}(x=0x{x:0{len}X}, base=16){post}'.format(
+                spc='',
+                indent=indent,
+                pre=pre,
                 cls=self.__class__.__name__,
                 x=int(self),
                 len=len(self) * 2,
-                blength=self._bit_size_,
-            ))
+                post=post
+            )
+        )
+
+    def __repr__(self):
+        return self.__pretty_repr__(None, 0, True)
 
     def __dir__(self):
         if self._mapping_ is not None:
