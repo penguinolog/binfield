@@ -37,7 +37,7 @@ else:
     text_type = unicode  # NOQA
     # pylint: enable=unicode-builtin, undefined-variable
 
-string_types = text_type, binary_type
+string_types = str if _PY3 else text_type, binary_type
 
 
 def _is_descriptor(obj):
@@ -258,18 +258,11 @@ def _make_mapping_property(key):
 
 def _py2_str(src):
     """Convert text to correct python type"""
-    if _PY3:
-        if isinstance(src, binary_type):
-            return src.decode(
-                encoding='utf-8',
-                errors='strict',
-            )
-    else:
-        if isinstance(src, text_type):
-            return src.encode(
-                encoding='utf-8',
-                errors='strict',
-            )
+    if not _PY3 and isinstance(src, text_type):
+        return src.encode(
+            encoding='utf-8',
+            errors='strict',
+        )
     return src
 
 
@@ -1044,7 +1037,7 @@ class _Formatter(object):
         """Make human readable representation of object
 
         :param src: object to process
-        :type src: union(six.binary_type, six.text_type, int, iterable, object)
+        :type src: union(binary_type, text_type, int, iterable, object)
         :param indent: start indentation
         :type indent: int
         :param no_indent_start:
