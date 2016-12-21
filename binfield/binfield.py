@@ -345,11 +345,10 @@ class BinFieldMeta(type):
                     _mapping_filter,
                     classdict.copy().items()
             ):
-                key = _py2_str(m_key)
                 if isinstance(m_val, (list, tuple)):
-                    mapping[key] = slice(*m_val)  # Mapped slice -> slice
+                    mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
                 else:
-                    mapping[key] = m_val
+                    mapping[m_key] = m_val
                 del classdict[m_key]
 
         garbage = {
@@ -374,7 +373,7 @@ class BinFieldMeta(type):
             )
 
             for m_key in ready_mapping:
-                classdict[m_key] = _make_mapping_property(m_key)
+                classdict[_py2_str(m_key)] = _make_mapping_property(m_key)
 
         else:
             classdict['_mapping_'] = property(
