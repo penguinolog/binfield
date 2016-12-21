@@ -16,9 +16,28 @@
 Implements BinField in Python
 """
 
+from __future__ import unicode_literals
+
 import collections
 import copy
 import math
+import sys
+
+
+_PY3 = sys.version_info[0:2] > (3, 0)
+
+
+if _PY3:
+    binary_type = bytes
+    text_type = str
+else:
+    binary_type = str
+    # pylint: disable=unicode-builtin, undefined-variable
+    # noinspection PyUnresolvedReferences
+    text_type = unicode  # NOQA
+    # pylint: enable=unicode-builtin, undefined-variable
+
+string_types = text_type, binary_type
 
 
 def _is_descriptor(obj):
@@ -81,7 +100,7 @@ def _mapping_filter(item):
     """
     name, obj = item
 
-    if not isinstance(name, str):
+    if not isinstance(name, string_types):
         return False
 
     if name in {'_index_'}:
@@ -237,6 +256,23 @@ def _make_mapping_property(key):
     )
 
 
+def _py2_str(src):
+    """Convert text to correct python type"""
+    if _PY3:
+        if isinstance(src, binary_type):
+            return src.decode(
+                encoding='utf-8',
+                errors='strict',
+            )
+    else:
+        if isinstance(src, text_type):
+            return src.encode(
+                encoding='utf-8',
+                errors='strict',
+            )
+    return src
+
+
 class BinField(object):
     """Fake class for BinFieldMeta compilation"""
     pass
@@ -252,6 +288,7 @@ class BinFieldMeta(type):
         :type classdict: dict
         :returns: new class
         """
+        name = _py2_str(name)
 
         for base in bases:
             if base is not BinField and issubclass(base, BinField):
@@ -308,10 +345,11 @@ class BinFieldMeta(type):
                     _mapping_filter,
                     classdict.copy().items()
             ):
+                key = _py2_str(m_key)
                 if isinstance(m_val, (list, tuple)):
-                    mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
+                    mapping[key] = slice(*m_val)  # Mapped slice -> slice
                 else:
-                    mapping[m_key] = m_val
+                    mapping[key] = m_val
                 del classdict[m_key]
 
         garbage = {
@@ -684,7 +722,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if _is_valid_slice_mapping(item):
             return self._getslice_(slice(*item))
 
-        if not isinstance(item, str) or item.startswith('_'):
+        if not isinstance(item, string_types) or item.startswith('_'):
             raise IndexError(item)
 
         if self._mapping_ is None:
@@ -784,7 +822,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if _is_valid_slice_mapping(key):
             return self._setslice_(slice(*key), value)
 
-        if not isinstance(key, str):
+        if not isinstance(key, string_types):
             raise IndexError(key)
 
         if self._mapping_ is None:
@@ -813,9 +851,15 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     ):
         indent = 0 if no_indent_start else indent
         indent_step = 2 if parser is None else parser.indent_step
+        max_indent = 20 if parser is None else parser.max_indent
+        py2_str = parser is None  # do not break str on py27
 
-        formatter = _Formatter(indent_step=indent_step)
-        return formatter.process_element(
+        formatter = _Formatter(
+            max_indent=max_indent,
+            indent_step=indent_step,
+            py2_str=py2_str
+        )
+        return formatter(
             src=self,
             indent=indent
         )
@@ -864,13 +908,24 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 class _Formatter(object):
     def __init__(
         self,
+        max_indent=20,
         indent_step=4,
+        py2_str=False,
+
     ):
         """BinField dedicated str formatter
 
+        :param max_indent: maximal indent before classic repr() call
+        :type max_indent: int
+        :param indent_step: step for the next indentation level
         :type indent_step: int
+        :param py2_str: use Python 2.x compatible strings instead of unicode
+        :type py2_str: bool
         """
+        self.__max_indent = max_indent
         self.__indent_step = indent_step
+        self.__py2_str = py2_str and not _PY3
+        # Python 2 only behavior
 
     @property
     def indent_step(self):
@@ -891,6 +946,14 @@ class _Formatter(object):
         """
         mult = 1 if not doubled else 2
         return indent + mult * self.indent_step
+
+    @property
+    def max_indent(self):
+        """Max indent getter
+
+        :rtype: int
+        """
+        return self.__max_indent
 
     def _str_bf_items(self, src, indent=0):
         """repr dict items
@@ -935,7 +998,7 @@ class _Formatter(object):
         else:
             mask = ' & 0b{:b}'.format(src._mask_)
 
-        if src._mapping_:
+        if src._mapping_ and indent < self.max_indent:
             as_dict = collections.OrderedDict(
                 ((key, src[key]) for key in src._mapping_)
             )
@@ -972,6 +1035,35 @@ class _Formatter(object):
             )
         )
     # pylint: enable=protected-access
+
+    def __call__(
+        self,
+        src,
+        indent=0,
+        no_indent_start=False
+    ):
+        """Make human readable representation of object
+
+        :param src: object to process
+        :type src: union(six.binary_type, six.text_type, int, iterable, object)
+        :param indent: start indentation
+        :type indent: int
+        :param no_indent_start:
+            do not indent open bracket and simple parameters
+        :type no_indent_start: bool
+        :return: formatted string
+        """
+        result = self.process_element(
+            src,
+            indent=indent,
+            no_indent_start=no_indent_start
+        )
+        if self.__py2_str:
+            return result.encode(
+                encoding='utf-8',
+                errors='backslashreplace',
+            )
+        return result
 
 
 __all__ = ['BinField']
