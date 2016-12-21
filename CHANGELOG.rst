@@ -1,5 +1,15 @@
 CHANGELOG
 =========
+Version 0.3.0
+-------------
+* Implemented human-readable __str__ using adopted code from logwrap package
+
+* implemented logwrap support
+
+* equality not crashes on incompatible data type
+
+* Support `unicode_literals` on python 2 (previously was a TypeError on unicode)
+
 Version 0.2.0
 -------------
 * Optimizations
