@@ -621,13 +621,13 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def __setstate__(self, state):
         self.__init__(**state)  # getstate returns enough data for __init__
 
-    def _get_child_cls_(self, mask, name, clsmask, size, mapping=None):
+    def _get_child_cls_(self, mask, name, cls_mask, size, mapping=None):
         """Get child class with memorize support
 
         :type mask:int
         :type name: str
         :type mapping: dict
-        :param clsmask: int
+        :param cls_mask: int
         :param size: int
         """
         # Memorize
@@ -636,7 +636,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             cls = BinFieldMeta.makecls(
                 name=name,
                 mapping=mapping,
-                mask=clsmask,
+                mask=cls_mask,
                 size=size
             )
             self.__class__._cache_[(mask, name)] = cls
@@ -682,13 +682,13 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if self._mask_ is not None:
             mask &= self._mask_
 
-        clsmask = mask >> start
+        cls_mask = mask >> start
 
         # Memorize
         cls = self._get_child_cls_(
             mask=mask,
             name=name,
-            clsmask=clsmask,
+            cls_mask=cls_mask,
             size=stop - start,
             mapping=mapping,
         )
@@ -774,25 +774,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if self._mask_:
             get_mask &= self._mask_
 
-        self._value_ = self._value_ ^ self._value_ & get_mask | value
-
-    def _set_bit_(self, key, value):
-        """Set single bit (faster logic, than setting slice)
-
-        :type key: int
-        :type value: int
-        """
-        if value.bit_length() > 1:
-            raise ValueError(
-                'Single bit could be changed only by another single bit'
-            )
-        if self._size_ and key > self._size_:
-            raise OverflowError(
-                'Index is out of data length: '
-                '{} > {}'.format(key, self._size_))
-
-        mask = int(self) ^ (int(self) & (1 << key))
-        self._value_ = mask | value << key
+        self._value_ = self._value_ & ~get_mask | value
 
     def __setitem__(self, key, value):
         """Indexed setter
@@ -806,7 +788,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             )
 
         if isinstance(key, int):
-            return self._set_bit_(key, value)
+            return self._setslice_(slice(key, key + 1), value)
 
         if _is_valid_slice(key):
             return self._setslice_(key, value)
@@ -927,17 +909,16 @@ class _Formatter(object):
         """
         return self.__indent_step
 
-    def next_indent(self, indent, doubled=False):
+    def next_indent(self, indent, multiplier=1):
         """Next indentation value
 
         :param indent: current indentation value
         :type indent: int
-        :param doubled: use double step instead of single
-        :type doubled: bool
+        :param multiplier: steps amount
+        :type multiplier: int
         :rtype: int
         """
-        mult = 1 if not doubled else 2
-        return indent + mult * self.indent_step
+        return indent + multiplier * self.indent_step
 
     @property
     def max_indent(self):
@@ -965,7 +946,7 @@ class _Formatter(object):
                 key=key,
                 val=self.process_element(
                     val,
-                    indent=self.next_indent(indent, doubled=True),
+                    indent=self.next_indent(indent, multiplier=2),
                     no_indent_start=True
                 )
             )
@@ -999,7 +980,7 @@ class _Formatter(object):
             return (
                 "{nl}"
                 "{spc:<{indent}}"
-                "{data}<0x{data:0{length}X} (0b{data:0{blength}b}{mask})"
+                "{data}<0x{data:0{length}X} (0b{data:0{bit_length}b}{mask})"
                 "{result}\n"
                 "{spc:<{indent}}>".format(
                     nl='\n' if no_indent_start else '',
@@ -1007,7 +988,7 @@ class _Formatter(object):
                     indent=indent,
                     data=int(src),
                     length=len(src) * 2,
-                    blength=src._bit_size_,
+                    bit_length=src._bit_size_,
                     mask=mask,
                     result=result,
                 )
