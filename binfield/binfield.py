@@ -502,7 +502,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # pylint: disable=protected-access
     def __eq__(self, other):
         # As integer
-        if isinstance(other, int):
+        if isinstance(other, (int, self.__class__)):
             return int(self) == other
         if isinstance(other, BinField):
             # noinspection PyUnresolvedReferences,PyProtectedMember
