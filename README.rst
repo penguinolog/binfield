@@ -5,6 +5,9 @@ binfield
     :target: https://travis-ci.org/penguinolog/binfield
 .. image:: https://coveralls.io/repos/github/penguinolog/binfield/badge.svg?branch=master
     :target: https://coveralls.io/github/penguinolog/binfield?branch=master
+.. image:: https://readthedocs.org/projects/binfield/badge/?version=latest
+    :target: https://binfield.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/v/binfield.svg
     :target: https://pypi.python.org/pypi/binfield
 .. image:: https://img.shields.io/pypi/pyversions/binfield.svg
