@@ -1,5 +1,15 @@
 CHANGELOG
 =========
+Version 0.4.0
+-------------
+* Mark as beta
+
+* Now documentation page is built from readme + sources
+
+* Code is optimized
+
+* Do not produce magic with parent mask: it will be done by parent object
+
 Version 0.3.0
 -------------
 * Implemented human-readable __str__ using adopted code from logwrap package

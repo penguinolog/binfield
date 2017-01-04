@@ -461,18 +461,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         if self.__parent_link is not None:
             obj, offset = self.__parent_link
-            # pylint: disable=protected-access
-            # noinspection PyUnresolvedReferences
-            if obj._mask_ is not None:
-                # noinspection PyUnresolvedReferences
-                obj_mask = obj._mask_
-            else:
-                obj_mask = (1 << obj._bit_size_) - 1
-            # pylint: enable=protected-access
 
-            mask = obj_mask ^ (self._mask_ << offset)
-            val = new_value << offset
-            obj[:] = (int(obj) & mask) | val
+            obj[:] =\
+                int(obj) & ~(self._mask_ << offset) | (new_value << offset)
+
         self.__value = new_value
 
     # integer methods

@@ -26,7 +26,7 @@ setuptools.setup(
     version=binfield.__version__,
     packages=['binfield'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
