@@ -24,7 +24,7 @@ with open('README.rst') as f:
 setuptools.setup(
     name='BinField',
     version=binfield.__version__,
-    packages=['binfield'],
+    packages=setuptools.find_packages(),
     classifiers=[
         'Development Status :: 4 - Beta',
 
