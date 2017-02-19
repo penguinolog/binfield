@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+Version 0.6.0
+-------------
+* Class properties:
+    Generated class exposes it's mapping, size, mask and keys as read only properties.
+    (Some magic was used to implement this).
+
 Version 0.5.0
 -------------
 * _value_ is read-only for class

@@ -278,12 +278,45 @@ def _py2_str(src):
     return src
 
 
+class BaseBinFieldMeta(object):
+    """Fake class for BinFieldMeta compilation and class instance creation"""
+    pass
+
+
 class BinField(object):
     """Fake class for BinFieldMeta compilation"""
     pass
 
 
-class BinFieldMeta(type):
+class BaseMeta(type):
+    """Metaclass for BaseClass creation"""
+    @property
+    def _value_(cls):
+        """This is instance only value"""
+        return NotImplemented
+
+    @property
+    def _size_(cls):
+        """Only for sized (Not BaseClass)"""
+        return NotImplemented
+
+    @property
+    def _bit_size_(cls):
+        """Only for sized (Not BaseClass)"""
+        return NotImplemented
+
+    @property
+    def _mask_(cls):
+        """Only if mask presents (Not BaseClass)"""
+        return NotImplemented
+
+    @property
+    def _mapping_(cls):
+        """Only for indexed (Not BaseClass)"""
+        return NotImplemented
+
+
+class BinFieldMeta(BaseMeta, type):
     """Metaclass for BinField class and subclasses construction"""
     def __new__(mcs, name, bases, classdict):
         """BinField metaclass
@@ -295,9 +328,20 @@ class BinFieldMeta(type):
         """
         name = _py2_str(name)
 
-        for base in bases:
-            if base is not BinField and issubclass(base, BinField):
-                raise TypeError("Cannot extend BinField")
+        if not (
+            BaseBinFieldMeta in bases or
+            any((issubclass(base, BaseBinFieldMeta) for base in bases))
+        ):
+            # Top level baseclass: cleanup
+            for key in ('_value_', '_size_', '_mask_', '_mapping_'):
+                classdict.pop(key, None)
+            return super(
+                BinFieldMeta,
+                mcs
+            ).__new__(mcs, name, bases, classdict)
+
+        meta_dict = {}
+        meta_name = _py2_str("{}Meta".format(name))
 
         if '_index_' in classdict:
             raise ValueError(
@@ -331,9 +375,11 @@ class BinFieldMeta(type):
             if size is None:
                 size = mask.bit_length()
 
-        classdict['_size_'] = _make_static_ro_property('size', size)
+        meta_dict['_size_'] = classdict['_size_'] = \
+            _make_static_ro_property('size', size)
 
-        classdict['_mask_'] = _make_static_ro_property('mask', mask)
+        meta_dict['_mask_'] = classdict['_mask_'] = \
+            _make_static_ro_property('mask', mask)
 
         mapping = classdict.pop('_mapping_', None)
 
@@ -366,23 +412,55 @@ class BinFieldMeta(type):
         ready_mapping = _prepare_mapping(mapping)
 
         if ready_mapping:
-            classdict['_mapping_'] = _make_static_ro_property(
-                'mapping',
-                copy.deepcopy(ready_mapping)
-            )
+            meta_dict['_mapping_'] = classdict['_mapping_'] = \
+                _make_static_ro_property('mapping',
+                                         copy.deepcopy(ready_mapping)
+                                         )
 
             for m_key in ready_mapping:
                 classdict[_py2_str(m_key)] = _make_mapping_property(m_key)
+                meta_dict[_py2_str(m_key)] = _make_static_ro_property(
+                    m_key,
+                    copy.deepcopy(ready_mapping[m_key])
+                )
 
         else:
-            classdict['_mapping_'] = _make_static_ro_property(
-                'mapping',
-                None
-            )
+            meta_dict['_mapping_'] = classdict['_mapping_'] = \
+                _make_static_ro_property('mapping', None)
 
         classdict['_cache_'] = {}  # Use for subclasses memorize
 
-        return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
+        # noinspection PyPep8Naming
+        RealMeta = type(
+            meta_name,
+            (type,),
+            meta_dict
+        )
+
+        # pylint: disable=bad-mcs-classmethod-argument
+        class SubMeta(RealMeta, BinFieldMeta, type):
+            """Mixin metaclass for creating BinField subclasses
+
+            Properties is made in RealMeta and here we are creating new class
+            by the single possible way (usage of super() is impossible).
+            """
+
+            # noinspection PyMethodParameters
+            def __new__(smcs, sname, sbases, sns):
+                for base in sbases:
+                    if base is not BinField and issubclass(base, BinField):
+                        raise TypeError("Cannot extend BinField")
+                return type.__new__(SubMeta, sname, sbases, sns)
+
+        # pylint: enable=bad-mcs-classmethod-argument
+
+        if BinField not in bases:
+            return super(
+                BinFieldMeta,
+                mcs
+            ).__new__(mcs, name, bases, classdict)
+
+        return SubMeta.__new__(SubMeta, name, bases, classdict)
 
     @classmethod
     def makecls(mcs, name, mapping=None, mask=None, size=None):
@@ -407,12 +485,9 @@ class BinFieldMeta(type):
             classdict['_mapping_'] = mapping
         return mcs.__new__(mcs, name, (BinField, ), classdict)
 
-    @property
-    def _value_(cls):
-        return NotImplemented
 
-
-BaseBinFieldMeta = BinFieldMeta.__new__(
+# noinspection PyRedeclaration
+BaseBinFieldMeta = BinFieldMeta.__new__(  # noqa
     BinFieldMeta,
     'BaseBinFieldMeta',
     (object, ),
@@ -724,7 +799,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if self._mapping_ is None:
             raise IndexError("Mapping is not available")
 
+        # pylint: disable=no-member
         idx = self._mapping_.get(item)
+        # pylint: enable=no-member
         if isinstance(idx, int):
             return self._getslice_(slice(idx, idx + 1), name=item)
         if isinstance(idx, slice):
@@ -806,7 +883,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if self._mapping_ is None:
             raise IndexError("Mapping is not available")
 
+        # pylint: disable=no-member
         idx = self._mapping_.get(key)
+        # pylint: enable=no-member
         if isinstance(idx, (int, slice)):
             return self.__setitem__(idx, value)
 
@@ -875,11 +954,13 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     def __dir__(self):
         if self._mapping_ is not None:
+            # pylint: disable=no-member
             keys = list(sorted(self._mapping_.keys()))
+            # pylint: enable=no-member
         else:
             keys = []
         return (
-            ['_bit_size_', '_mapping_', '_mask_', '_value_'] + keys
+            ['_bit_size_', '_mapping_', '_mask_', '_value_', '_size_'] + keys
         )
 
 

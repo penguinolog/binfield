@@ -173,6 +173,7 @@ class BaseFunctionality(unittest.TestCase):
         )
 
         mbf_test_index = mbf.test_index
+        # noinspection PyTypeChecker
         self.assertEqual(
             repr(mbf_test_index),
             '<{cls}(x=0x{x:0{len}X}, base=16) at 0x{id:X}>'.format(
@@ -382,3 +383,34 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(ROValue._value_, NotImplemented)
         with self.assertRaises(AttributeError):
             ROValue._value_ = 1
+
+    def test_class(self):
+        self.assertEqual(BinField._value_, NotImplemented)
+        self.assertEqual(BinField._size_, NotImplemented)
+        self.assertEqual(BinField._bit_size_, NotImplemented)
+        self.assertEqual(BinField._mask_, NotImplemented)
+        self.assertEqual(BinField._mapping_, NotImplemented)
+
+        size = 16
+        mask = 0b1111111100100111
+
+        class FullFilledBinField(BinField):
+            test_index = 0
+            test_slc = slice(1, 3)
+            test_list_slc = [3, 5]
+            test_nested = {
+                '_index_': (5, 8),
+                'single_bit': 0,
+                'multiple': (1, 3)
+            }
+            _size_ = size
+            _mask_ = mask
+
+        self.assertEqual(FullFilledBinField._size_, size)
+        self.assertEqual(FullFilledBinField._mask_, mask)
+        self.assertEqual(
+            FullFilledBinField._mapping_,
+            FullFilledBinField()._mapping_
+        )
+        self.assertEqual(FullFilledBinField.test_index, 0)
+        self.assertEqual(FullFilledBinField.test_slc, slice(1, 3))

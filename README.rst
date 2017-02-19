@@ -81,6 +81,8 @@ Mapped objects is also should be created as new class (type):
     0b1001 == bf
     4 == bf._size_  # Size is generated during creation from mask
     0b01 == bf.two_bits._mask_  # Mask is inherited from parent object
+    MyBinField.first == 0  # Getter was generated from mask
+    MyBinField.two_bits == slice(1, 3)  # Slices is mapped during class generation
 
 Nested mapping is supported:
 
