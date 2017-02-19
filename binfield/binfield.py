@@ -256,6 +256,18 @@ def _make_mapping_property(key):
     )
 
 
+def _make_static_ro_property(name, val):
+    """Property generator for static cases
+
+    :type name: str
+    :type val: object
+    """
+    return property(
+        fget=lambda _=None: val,
+        doc="""Read-only {}""".format(name)
+    )
+
+
 def _py2_str(src):
     """Convert text to correct python type"""
     if not _PY3 and isinstance(src, text_type):
@@ -319,15 +331,9 @@ class BinFieldMeta(type):
             if size is None:
                 size = mask.bit_length()
 
-        classdict['_size_'] = property(
-            fget=lambda _: size,
-            doc="""Read-only bit length size"""
-        )
+        classdict['_size_'] = _make_static_ro_property('size', size)
 
-        classdict['_mask_'] = property(
-            fget=lambda _: mask,
-            doc="""Read-only data binary mask"""
-        )
+        classdict['_mask_'] = _make_static_ro_property('mask', mask)
 
         mapping = classdict.pop('_mapping_', None)
 
@@ -360,18 +366,18 @@ class BinFieldMeta(type):
         ready_mapping = _prepare_mapping(mapping)
 
         if ready_mapping:
-            classdict['_mapping_'] = property(
-                fget=lambda _: copy.deepcopy(ready_mapping),
-                doc="""Read-only mapping structure"""
+            classdict['_mapping_'] = _make_static_ro_property(
+                'mapping',
+                copy.deepcopy(ready_mapping)
             )
 
             for m_key in ready_mapping:
                 classdict[_py2_str(m_key)] = _make_mapping_property(m_key)
 
         else:
-            classdict['_mapping_'] = property(
-                fget=lambda _: None,
-                doc="""Read-only mapping structure"""
+            classdict['_mapping_'] = _make_static_ro_property(
+                'mapping',
+                None
             )
 
         classdict['_cache_'] = {}  # Use for subclasses memorize
@@ -401,11 +407,17 @@ class BinFieldMeta(type):
             classdict['_mapping_'] = mapping
         return mcs.__new__(mcs, name, (BinField, ), classdict)
 
+    @property
+    def _value_(cls):
+        return NotImplemented
+
 
 BaseBinFieldMeta = BinFieldMeta.__new__(
-    BinFieldMeta,
-    'intermediate_class', (object, ), {'__slots__': ()}
-)
+        BinFieldMeta,
+        'BaseBinFieldMeta',
+        (object, ),
+        {'__slots__': ()}
+    )
 
 
 # noinspection PyRedeclaration

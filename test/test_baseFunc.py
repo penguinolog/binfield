@@ -375,3 +375,10 @@ class BaseFunctionality(unittest.TestCase):
             # noinspection PyUnusedLocal
             class GarbageData(BinField):
                 value = 'Not recognized'
+
+        class ROValue(BinField):
+            pass
+
+        self.assertEqual(ROValue._value_, NotImplemented)
+        with self.assertRaises(AttributeError):
+            ROValue._value_ = 1

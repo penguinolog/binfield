@@ -1,5 +1,14 @@
 CHANGELOG
 =========
+
+Version 0.5.0
+-------------
+* _value_ is read-only for class
+
+* Dropped out hardcode from setup.py
+
+* Correct internal class name for BaseBinFieldMeta
+
 Version 0.4.0
 -------------
 * Mark as beta

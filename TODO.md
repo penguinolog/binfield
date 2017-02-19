@@ -1,3 +1,3 @@
 * [x] Documentation
-* [ ] Examples in documentation
+* [x] Examples in documentation
 * [ ] Unit-test with logwrap package usage
