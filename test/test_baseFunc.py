@@ -24,7 +24,7 @@ class BaseFunctionality(unittest.TestCase):
         )
 
         self.assertEqual(
-            dir(bf), ['_bit_size_', '_mapping_', '_mask_', '_value_']
+            dir(bf), ['_bit_size_', '_mapping_', '_mask_', '_size_', '_value_']
         )
 
         self.assertEqual(bf._bit_size_, test_value.bit_length())
@@ -237,7 +237,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(
             dir(nbf),
             [
-                '_bit_size_', '_mapping_', '_mask_', '_value_',
+                '_bit_size_', '_mapping_', '_mask_', '_size_', '_value_',
                 'nested_block', 'test_index'
             ]
         )
