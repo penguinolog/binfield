@@ -413,11 +413,11 @@ class BinFieldMeta(type):
 
 
 BaseBinFieldMeta = BinFieldMeta.__new__(
-        BinFieldMeta,
-        'BaseBinFieldMeta',
-        (object, ),
-        {'__slots__': ()}
-    )
+    BinFieldMeta,
+    'BaseBinFieldMeta',
+    (object, ),
+    {'__slots__': ()}
+)
 
 
 # noinspection PyRedeclaration
