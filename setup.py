@@ -46,6 +46,7 @@ setuptools.setup(
 
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: Implementation :: Jython',
     ],
     keywords='binary binfield development',
     url='https://github.com/penguinolog/binfield',
