@@ -430,6 +430,13 @@ class BinFieldMeta(BaseMeta, type):
 
         classdict['_cache_'] = {}  # Use for subclasses memorize
 
+        if BinField not in bases:
+            return super(
+                BinFieldMeta,
+                mcs
+            ).__new__(
+                mcs, name, bases, classdict)
+
         # noinspection PyPep8Naming
         RealMeta = type(
             meta_name,
@@ -453,12 +460,6 @@ class BinFieldMeta(BaseMeta, type):
                 return type.__new__(SubMeta, sname, sbases, sns)
 
         # pylint: enable=bad-mcs-classmethod-argument
-
-        if BinField not in bases:
-            return super(
-                BinFieldMeta,
-                mcs
-            ).__new__(mcs, name, bases, classdict)
 
         return SubMeta.__new__(SubMeta, name, bases, classdict)
 
