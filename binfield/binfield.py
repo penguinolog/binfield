@@ -421,7 +421,7 @@ class BinFieldMeta(BaseMeta, type):
                 classdict[_py2_str(m_key)] = _make_mapping_property(m_key)
                 meta_dict[_py2_str(m_key)] = _make_static_ro_property(
                     m_key,
-                    copy.deepcopy(ready_mapping[m_key])
+                    _get_index(ready_mapping[m_key])
                 )
 
         else:
@@ -501,6 +501,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     __slots__ = ['__value', '__parent_link', '__dict__']
 
     _cache_ = {}  # Will be replaced by the same by metaclass, but helps lint
+
+    _size_ = None
+    _mask_ = None
+    _mapping_ = None
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):

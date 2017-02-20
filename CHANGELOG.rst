@@ -1,6 +1,12 @@
 CHANGELOG
 =========
 
+Version 0.6.1
+-------------
+* Class properties always returns indexes.
+
+* Helper code for code-completion is added to BinField class.
+
 Version 0.6.0
 -------------
 * Class properties:

@@ -98,6 +98,7 @@ Nested mapping is supported:
         }
         # Nested objects could contain less indexed area, than block size,
         # but mask will be calculated from outer level indexes only.
+        MyBinField.nested_bits == slice(1, 3)  # Nested objects is exposed as indexes only at class property.
 
 
     bf = MyBinField(0xFF)

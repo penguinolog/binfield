@@ -414,3 +414,6 @@ class BaseFunctionality(unittest.TestCase):
         )
         self.assertEqual(FullFilledBinField.test_index, 0)
         self.assertEqual(FullFilledBinField.test_slc, slice(1, 3))
+        # Nested is exposed as indexes only.
+        # Use mapping, if details required.
+        self.assertEqual(FullFilledBinField.test_nested, slice(5, 8))
