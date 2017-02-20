@@ -34,6 +34,7 @@ Pros:
     Python 3.5
     Python 3.6
     PyPy
+    PyPy3
     Jyton 2.7
 
 Usage
@@ -126,6 +127,7 @@ Test environments available:
     py35
     py36
     pypy
+    pypy3
     jyton
     pylint
 
