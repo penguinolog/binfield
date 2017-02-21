@@ -22,8 +22,9 @@ Python binfield implementation for binary data manipulation.
     Why? Python supports binary data manipulation via binary operations out of the box and it's fast,
     but it's hard to read and painful during prototyping, especially for complex (nested) structures.
 
-    This library is desined to fix this issue: it allows to operate with binary data like dict with read-only keys:
+    This library is desined to fix this issue: it allows to operate with binary data like dict with constant indexes:
     you just need to define structure class and create an instance with start data.
+    Now you can use indexes for reading and writing data
 
 Example on real data (TCP header, constant part):
 
@@ -57,41 +58,65 @@ Example on real data (TCP header, constant part):
     # Construct from frame
     # (limitation: endianless convertation is not supported, make it by another tools)
     header = TCPHeader(0x0000BD1A043708050000078B000007F601BBAF0A)
+
     # Do not print header due to huge length (will be printed all bits)
+    >>> repr(header)
+    'TCPHeader(x=0x0000BD1A043708050000078B000007F601BBAF0A, base=16)'
+
+    >>> repr(header.source_port)
+    '<source_port(x=0xAF0A, base=16) at 0x7F890C8B9348>'
 
     >>> print(header.source_port)
-    44810<0xAF0A (0b1010111100001010 & 0b1111111111111111)>
+    <44810 == 0xAF0A == (0b1010111100001010 & 0b1111111111111111)>
+
+    >>> header.source_port == 44810  # Transparent comparsion with integers
+    True
+
+    >>> int(header.source_port)  # Painless conversion to int
+    44810
 
     >>> print(header.destination_port)
-    443<0x01BB (0b0000000110111011 & 0b1111111111111111)>  # Request multiple bytes
+    <443 == 0x01BB == (0b0000000110111011 & 0b1111111111111111)> # Request multiple bytes
 
     >>> print(header.data_offset)  # Request multiple bits
-    5<0x05 (0b0101 & 0b1111)>
+    <5 == 0x05 == (0b0101 & 0b1111)>
+
+    >>> print(header.destination_port[1: 3])  # Request several bits from nested block too
+    <1 == 0x01 == (0b01 & 0b11)>
 
     >>> print(header.flags)  # Request nested mapping block
-    64<0x0040 (0b0001000000 & 0b1111111111)
-      NS  = 0<0x00 (0b0 & 0b1)>
-      CWR = 0<0x00 (0b0 & 0b1)>
-      ECE = 0<0x00 (0b0 & 0b1)>
-      URG = 0<0x00 (0b0 & 0b1)>
-      ACK = 0<0x00 (0b0 & 0b1)>
-      PSH = 0<0x00 (0b0 & 0b1)>
-      RST = 1<0x01 (0b1 & 0b1)>
-      SYN = 0<0x00 (0b0 & 0b1)>
-      FIN = 0<0x00 (0b0 & 0b1)>
+    <16 == 0x0010 == (0b000010000 & 0b111111111)
+      NS  = <0 == 0x00 == (0b0 & 0b1)>
+      CWR = <0 == 0x00 == (0b0 & 0b1)>
+      ECE = <0 == 0x00 == (0b0 & 0b1)>
+      URG = <0 == 0x00 == (0b0 & 0b1)>
+      ACK = <1 == 0x01 == (0b1 & 0b1)>
+      PSH = <0 == 0x00 == (0b0 & 0b1)>
+      RST = <0 == 0x00 == (0b0 & 0b1)>
+      SYN = <0 == 0x00 == (0b0 & 0b1)>
+      FIN = <0 == 0x00 == (0b0 & 0b1)>
     >
 
     >>> print(header.flags.ACK == 0x01)  # Request single bit from nested mapping
     True
 
-    >>> print(header.window_size)
-    1079<0x0437 (0b0000010000110111 & 0b1111111111111111)>
-
-    >>> print(header.checksum)
-    48410<0xBD1A (0b1011110100011010 & 0b1111111111111111)>
-
     >>> print(header[: 4])  # Ignore indexes and just get few bits using slice
-    10<0x0A (0b1010 & 0b1111)>
+    <10 == 0x0A == (0b1010 & 0b1111)>
+
+    # Modification of nested data (if no type conversion was used) changes original object:
+    header.flags.FIN = 1
+    >>> print(header.flags)
+    <272 == 0x0110 == (0b100010000 & 0b111111111)
+      NS  = <0 == 0x00 == (0b0 & 0b1)>
+      CWR = <0 == 0x00 == (0b0 & 0b1)>
+      ECE = <0 == 0x00 == (0b0 & 0b1)>
+      URG = <0 == 0x00 == (0b0 & 0b1)>
+      ACK = <1 == 0x01 == (0b1 & 0b1)>
+      PSH = <0 == 0x00 == (0b0 & 0b1)>
+      RST = <0 == 0x00 == (0b0 & 0b1)>
+      SYN = <0 == 0x00 == (0b0 & 0b1)>
+      FIN = <1 == 0x01 == (0b1 & 0b1)>
+    >
 
 **Pros**:
 

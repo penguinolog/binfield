@@ -4,6 +4,8 @@ Version 0.7.0
 -------------
 * Fixed long for python 2
 
+* __str__ has been reworked
+
 * Documentation has been updated
 
 Version 0.6.1

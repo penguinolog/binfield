@@ -33,11 +33,13 @@ if _PY3:
     int_types = int,
 else:
     binary_type = str
-    # pylint: disable=unicode-builtin, undefined-variable
+    # pylint: disable=unicode-builtin, undefined-variable, long-builtin
     # noinspection PyUnresolvedReferences
     text_type = unicode  # NOQA
-    # pylint: enable=unicode-builtin, undefined-variable
-    int_types = int, long
+    # noinspection PyUnresolvedReferences
+    int_types = int, long  # NOQA
+    # pylint: enable=unicode-builtin, undefined-variable, long-builtin
+
 
 string_types = str if _PY3 else text_type, binary_type
 
@@ -1072,7 +1074,9 @@ class _Formatter(object):
             return (
                 "{nl}"
                 "{spc:<{indent}}"
-                "{data}<0x{data:0{length}X} (0b{data:0{bit_length}b}{mask})"
+                "<{data} == "
+                "0x{data:0{length}X} == "
+                "(0b{data:0{bit_length}b}{mask})"
                 "{result}\n"
                 "{spc:<{indent}}>".format(
                     nl='\n' if no_indent_start else '',
@@ -1089,7 +1093,7 @@ class _Formatter(object):
         indent = 0 if no_indent_start else indent
         return (
             '{spc:<{indent}}'
-            '{data}<0x{data:0{length}X} (0b{data:0{blength}b}{mask})>'
+            '<{data} == 0x{data:0{length}X} == (0b{data:0{blength}b}{mask})>'
             ''.format(
                 spc='',
                 indent=indent,

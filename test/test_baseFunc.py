@@ -151,7 +151,7 @@ class BaseFunctionality(unittest.TestCase):
 
         bf |= 0xff
         self.assertEqual(
-            '255<0xFF (0b11111111)>',
+            '<255 == 0xFF == (0b11111111)>',
             str(bf),
         )
 
@@ -297,12 +297,12 @@ class BaseFunctionality(unittest.TestCase):
         self.assertNotEqual(hash(nested_copy), hash(nbf.nested_block))
         self.assertEqual(nbf, 0b11001101)  # Original
         self.assertEqual(
-            '205<0xCD (0b11001101 & 0b11111111)\n'
-            '  test_index   = 1<0x01 (0b1 & 0b1)>\n'
+            '<205 == 0xCD == (0b11001101 & 0b11111111)\n'
+            '  test_index   = <1 == 0x01 == (0b1 & 0b1)>\n'
             '  nested_block = \n'
-            '    6<0x06 (0b00110 & 0b11111)\n'
-            '      single_bit = 0<0x00 (0b0 & 0b1)>\n'
-            '      multiple   = 3<0x03 (0b11 & 0b11)>\n'
+            '    <6 == 0x06 == (0b00110 & 0b11111)\n'
+            '      single_bit = <0 == 0x00 == (0b0 & 0b1)>\n'
+            '      multiple   = <3 == 0x03 == (0b11 & 0b11)>\n'
             '    >\n'
             '>',
             str(nbf),
