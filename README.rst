@@ -26,6 +26,34 @@ Python binfield implementation for binary data manipulation.
     you just need to define structure class and create an instance with start data.
     Now you can use indexes for reading and writing data
 
+**Pros**:
+
+* Free software: Apache license
+* Open Source: https://github.com/penguinolog/binfield
+* Self-documented code: docstrings with types in comments
+* Tested: see bages on top
+* Support multiple Python versions:
+
+::
+
+    Python 2.7
+    Python 3.4
+    Python 3.5
+    Python 3.6
+    PyPy
+    PyPy3
+    Jyton 2.7
+
+Usage
+=====
+
+Not mapped objects could be created simply from BinField class:
+
+.. code-block:: python
+
+    bf = BinField(42)
+
+Data with fixed size should be created as new class (type):
 Example on real data (TCP header, constant part):
 
 .. code-block:: python
@@ -118,98 +146,24 @@ Example on real data (TCP header, constant part):
       FIN = <1 == 0x01 == (0b1 & 0b1)>
     >
 
-**Pros**:
+    # Indexes is accessible from base class
+    >>> print(TCPHeader.source_port)
+    slice(0, 16, None)
 
-* Free software: Apache license
-* Open Source: https://github.com/penguinolog/binfield
-* Self-documented code: docstrings with types in comments
-* Tested: see bages on top
-* Support multiple Python versions:
+    # But remember, that nested blocks has it's own classes
+    >>> header.flags.__class__
+    <class 'binfield.binfield.flags'>
 
-::
+    # Fields could be set only from integers
+    >>> header2 = TCPHeader()
+    >>> header2.flags = header.flags
+    Traceback (most recent call last):
+    ...
+    TypeError: BinField value could be set only as int
 
-    Python 2.7
-    Python 3.4
-    Python 3.5
-    Python 3.6
-    PyPy
-    PyPy3
-    Jyton 2.7
-
-Usage
-=====
-
-Not mapped objects could be created simply from BinField class:
-
-.. code-block:: python
-
-    bf = BinField(42)
-
-Data with fixed size should be created as new class (type):
-
-.. code-block:: python
-
-    class TwoBytes(BinField):
-        _size_ = 16  # Size in bits
-
-
-    bf = TwoBytes(42)
-    2 == len(bf)  # Length is in bytes for easier conversion to bytes
-
-Also binary mask could be attached and data will be always conform with it:
-
-.. code-block:: python
-
-    class MyBinField(BinField):
-        _mask_ = 0b11
-        _size_ = 8
-
-
-    bf = MyBinField(5)
-    0b001 == bf  # Mask was applied and 0b101 & 0b011 = 0b001
-
-Mapped objects is also should be created as new class (type):
-
-.. code-block:: python
-
-    class MyBinField(BinField):
-        first = 0  # Single bit
-        two_bits = [1, 3]  # Also could be mapped as tuple and slice
-        _mask_ = 0b1011
-
-
-    bf = MyBinField(0b1101)
-    0b1001 == bf
-    4 == bf._size_  # Size is generated during creation from mask
-    0b01 == bf.two_bits._mask_  # Mask is inherited from parent object
-    MyBinField.first == 0  # Getter was generated from mapping
-    bf.first == 1  # Got index 0 (as exposed on previous line)
-    MyBinField.two_bits == slice(1, 3)  # Slices is mapped during class generation
-    bf.two_bits == 0x00  # Got slice -> bits 1 and 2 is 0
-
-Nested mapping is supported:
-
-.. code-block:: python
-
-    class MyBinField(BinField):
-        first = 0  # Single bit
-        two_bits = [1, 3]  # Also could be mapped as tuple and slice
-        nested = {
-            '_index_': [3, 8],  # Index is mandatory, it should be slice, list or tuple
-            'nested_bit': 0,  # In nested objects use relative indexing
-            'nested_bits': [1, 3]
-        }
-        # Nested objects could contain less indexed area, than block size,
-        # but mask will be calculated from outer level indexes only.
-
-    bf = MyBinField(0xFF)
-    MyBinField.nested == slice(3, 8)  # Nested objects is exposed as indexes only at class property.
-    0b00011111 == bf.nested  # Slice was applied
-    # Nested received (generated as all bits in range) mask from top
-    # and size from slice
-    1 == bf.nested.nested_bit  # __getitem__ and properties is available
-    bf.nested.nested_bit = 0  # property has setters
-    0b11110111 == bf  # Change on nested is returned to main object
+    >>> header2.flags = int(header.flags)
+    >>> header2.flags
+    <flags(x=0x0110, base=16) at 0x7FBC9A21FFC8>
 
 
 Note: *negative indexes is not supported by design!*
