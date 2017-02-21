@@ -30,12 +30,14 @@ _PY3 = sys.version_info[0:2] > (3, 0)
 if _PY3:
     binary_type = bytes
     text_type = str
+    int_types = int,
 else:
     binary_type = str
     # pylint: disable=unicode-builtin, undefined-variable
     # noinspection PyUnresolvedReferences
     text_type = unicode  # NOQA
     # pylint: enable=unicode-builtin, undefined-variable
+    int_types = int, long
 
 string_types = str if _PY3 else text_type, binary_type
 
@@ -365,7 +367,7 @@ class BinFieldMeta(BaseMeta, type):
         mask = classdict.pop('_mask_', mask_from_size)
 
         if mask is not None:
-            if not isinstance(mask, int):
+            if not isinstance(mask, int_types):
                 raise TypeError(
                     'Pre-defined mask has invalid type: {!r}'.format(mask)
                 )
@@ -517,7 +519,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :type base: int
         :type _parent: (BinField, slice)
         """
-        self.__value = x if isinstance(x, int) else int(x, base=base)
+        self.__value = x if isinstance(x, int_types) else int(x, base=base)
         if self._mask_:
             self.__value &= self._mask_
         self.__parent_link = _parent

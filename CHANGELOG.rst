@@ -1,5 +1,10 @@
 CHANGELOG
 =========
+Version 0.7.0
+-------------
+* Fixed long for python 2
+
+* Documentation has been updated
 
 Version 0.6.1
 -------------

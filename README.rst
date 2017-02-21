@@ -19,13 +19,87 @@ binfield
 
 Python binfield implementation for binary data manipulation.
 
-Pros:
+    Why? Python supports binary data manipulation via binary operations out of the box and it's fast,
+    but it's hard to read and painful during prototyping, especially for complex (nested) structures.
+
+    This library is desined to fix this issue: it allows to operate with binary data like dict with read-only keys:
+    you just need to define structure class and create an instance with start data.
+
+Example on real data (TCP header, constant part):
+
+.. code-block:: python
+
+    # Describe
+    class TCPHeader(binfield.BinField):
+        _size_ = 160
+        _mask_ = 0xFFFFFFFFFFFFFF8FFFFFFFFFFFFFFFFFFFFFFFFF
+        source_port = [0, 16]
+        destination_port = [16, 32]
+        sequence_number = [32, 64]
+        ack_number = [64, 96]
+        data_offset = [96, 100]
+        flags = {
+            '_index_': [103, 112],
+            'NS': 0,
+            'CWR': 1,
+            'ECE': 2,
+            'URG': 3,
+            'ACK': 4,
+            'PSH': 5,
+            'RST': 6,
+            'SYN': 7,
+            'FIN': 8
+        }
+        window_size = [112, 128]
+        checksum = [128, 144]
+        urgent_pointer = [144, 160]
+
+    # Construct from frame
+    # (limitation: endianless convertation is not supported, make it by another tools)
+    header = TCPHeader(0x0000BD1A043708050000078B000007F601BBAF0A)
+    # Do not print header due to huge length (will be printed all bits)
+
+    >>> print(header.source_port)
+    44810<0xAF0A (0b1010111100001010 & 0b1111111111111111)>
+
+    >>> print(header.destination_port)
+    443<0x01BB (0b0000000110111011 & 0b1111111111111111)>  # Request multiple bytes
+
+    >>> print(header.data_offset)  # Request multiple bits
+    5<0x05 (0b0101 & 0b1111)>
+
+    >>> print(header.flags)  # Request nested mapping block
+    64<0x0040 (0b0001000000 & 0b1111111111)
+      NS  = 0<0x00 (0b0 & 0b1)>
+      CWR = 0<0x00 (0b0 & 0b1)>
+      ECE = 0<0x00 (0b0 & 0b1)>
+      URG = 0<0x00 (0b0 & 0b1)>
+      ACK = 0<0x00 (0b0 & 0b1)>
+      PSH = 0<0x00 (0b0 & 0b1)>
+      RST = 1<0x01 (0b1 & 0b1)>
+      SYN = 0<0x00 (0b0 & 0b1)>
+      FIN = 0<0x00 (0b0 & 0b1)>
+    >
+
+    >>> print(header.flags.ACK == 0x01)  # Request single bit from nested mapping
+    True
+
+    >>> print(header.window_size)
+    1079<0x0437 (0b0000010000110111 & 0b1111111111111111)>
+
+    >>> print(header.checksum)
+    48410<0xBD1A (0b1011110100011010 & 0b1111111111111111)>
+
+    >>> print(header[: 4])  # Ignore indexes and just get few bits using slice
+    10<0x0A (0b1010 & 0b1111)>
+
+**Pros**:
 
 * Free software: Apache license
 * Open Source: https://github.com/penguinolog/binfield
 * Self-documented code: docstrings with types in comments
 * Tested: see bages on top
-* Support miltiple Python versions:
+* Support multiple Python versions:
 
 ::
 
@@ -84,7 +158,9 @@ Mapped objects is also should be created as new class (type):
     4 == bf._size_  # Size is generated during creation from mask
     0b01 == bf.two_bits._mask_  # Mask is inherited from parent object
     MyBinField.first == 0  # Getter was generated from mapping
+    bf.first == 1  # Got index 0 (as exposed on previous line)
     MyBinField.two_bits == slice(1, 3)  # Slices is mapped during class generation
+    bf.two_bits == 0x00  # Got slice -> bits 1 and 2 is 0
 
 Nested mapping is supported:
 
