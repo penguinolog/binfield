@@ -176,11 +176,10 @@ Nested mapping is supported:
         }
         # Nested objects could contain less indexed area, than block size,
         # but mask will be calculated from outer level indexes only.
-        MyBinField.nested_bits == slice(1, 3)  # Nested objects is exposed as indexes only at class property.
-
 
     bf = MyBinField(0xFF)
-    0b00011111 == bf.nested
+    MyBinField.nested == slice(3, 8)  # Nested objects is exposed as indexes only at class property.
+    0b00011111 == bf.nested  # Slice was applied
     # Nested received (generated as all bits in range) mask from top
     # and size from slice
     1 == bf.nested.nested_bit  # __getitem__ and properties is available
