@@ -377,6 +377,7 @@ class BinFieldMeta(BaseMeta, type):
                 raise ValueError('BitMask is strictly positive!')
 
             if size is None:
+                # noinspection PyUnresolvedReferences
                 size = mask.bit_length()
 
         meta_dict['_size_'] = classdict['_size_'] = \

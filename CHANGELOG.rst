@@ -1,5 +1,13 @@
 CHANGELOG
 =========
+Version 0.7.2
+-------------
+* Fixed documentation misprints
+
+Version 0.7.1
+-------------
+* Replaced example by real IEEE 802.14 data block (captured)
+
 Version 0.7.0
 -------------
 * Fixed long for python 2

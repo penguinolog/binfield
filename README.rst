@@ -22,7 +22,7 @@ Python binfield implementation for binary data manipulation.
     Why? Python supports binary data manipulation via binary operations out of the box and it's fast,
     but it's hard to read and painful during prototyping, especially for complex (nested) structures.
 
-    This library is desined to fix this issue: it allows to operate with binary data like dict with constant indexes:
+    This library is designed to fix this issue: it allows to operate with binary data like dict with constant indexes:
     you just need to define structure class and create an instance with start data.
     Now you can use indexes for reading and writing data
 
@@ -31,7 +31,7 @@ Python binfield implementation for binary data manipulation.
 * Free software: Apache license
 * Open Source: https://github.com/penguinolog/binfield
 * Self-documented code: docstrings with types in comments
-* Tested: see bages on top
+* Tested: see badges on top
 * Support multiple Python versions:
 
 ::
@@ -47,13 +47,13 @@ Python binfield implementation for binary data manipulation.
 Usage
 =====
 
-Not mapped objects could be created simply from BinField class:
+Not mapped objects can be created simply from BinField class:
 
 .. code-block:: python
 
     bf = BinField(42)
 
-Data with fixed size should be created as new class (type):
+Data with fixed size should be created as a new class (type):
 Example on real data (ZigBee frame control field):
 
 .. code-block:: python
@@ -67,14 +67,14 @@ Example on real data (ZigBee frame control field):
         FramePending = 4
         AckRequest = 5
         PAN_ID_Compression = 6
-        SequrityNumberSuppress = 8
+        SecurityNumberSuppress = 8
         InformationPresent = 9
         DstAddrMode = [10, 12]
         FrameVersion =  [12, 14]
         SrcAddrMode = [14, 16]
 
     # Construct from frame
-    # (limitation: endianless convertation is not supported, make it by another tools)
+    # (limitation: endian conversion is not supported, make it using another tools)
     frame = frame = ZBFrameControl(0x0803)  # Beacon request
 
     >>> print(frame)
@@ -84,7 +84,7 @@ Example on real data (ZigBee frame control field):
       FramePending           = <0 == 0x00 == (0b0 & 0b1)>
       AckRequest             = <0 == 0x00 == (0b0 & 0b1)>
       PAN_ID_Compression     = <0 == 0x00 == (0b0 & 0b1)>
-      SequrityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
+      SecurityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
       InformationPresent     = <0 == 0x00 == (0b0 & 0b1)>
       DstAddrMode            = <2 == 0x02 == (0b10 & 0b11)>
       FrameVersion           = <0 == 0x00 == (0b00 & 0b11)>
@@ -100,7 +100,7 @@ Example on real data (ZigBee frame control field):
     >>> repr(frame.FrameType[: 2])
     '<FrameType_slice_0_2(x=0x03, base=16) at 0x7FD0ACA57408>'
 
-    >>> frame.FrameType == 3  # Transparent comparsion with integers
+    >>> frame.FrameType == 3  # Transparent comparision with integers
     True
 
     >>> int(frame.FrameType)  # Painless conversion to int
@@ -127,7 +127,7 @@ Example on real data (ZigBee frame control field):
       FramePending           = <0 == 0x00 == (0b0 & 0b1)>
       AckRequest             = <1 == 0x01 == (0b1 & 0b1)>
       PAN_ID_Compression     = <0 == 0x00 == (0b0 & 0b1)>
-      SequrityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
+      SecurityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
       InformationPresent     = <0 == 0x00 == (0b0 & 0b1)>
       DstAddrMode            = <2 == 0x02 == (0b10 & 0b11)>
       FrameVersion           = <0 == 0x00 == (0b00 & 0b11)>
@@ -142,7 +142,7 @@ Example on real data (ZigBee frame control field):
     >>> repr(fr2)
     'ZBFrameControl(x=0xFF7F, base=16)'  # Mask if applied, if defined
 
-    # Fields could be set only from integers
+    # Fields can be set only from integers
     >>> frame.SrcAddrMode = fr2.SrcAddrMode
     Traceback (most recent call last):
     ...
@@ -152,7 +152,7 @@ Example on real data (ZigBee frame control field):
     '<FramePending(x=0x00, base=16) at 0x7FD0ACAD3188>'
 
 
-Nested structures is supported, if required. Definition example (not aligned with any real data):
+Nested structures are supported, if required. Definition example (not aligned with any real data):
 
 .. code-block:: python
 
@@ -164,12 +164,32 @@ Nested structures is supported, if required. Definition example (not aligned wit
             'multiple': (1, 3)
         }
 
+    >>> bf = NestedMappedBinField(0xFF)
+    # No _size_ and no _mask_ -> size is not limited,
+    # but indexes can not be changed after class creation
+    >>> print(bf)
+    <255 == 0xFF == (0b11111111)
+      test_index   = <1 == 0x01 == (0b1 & 0b1)>
+      nested_block =
+        <31 == 0x1F == (0b11111 & 0b11111)
+          single_bit = <1 == 0x01 == (0b1 & 0b1)>
+          multiple   = <3 == 0x03 == (0b11 & 0b11)>
+        >
+    >
 
-Note: *negative indexes is not supported by design!*
+    # Get nested block: nested block is structured.
+    >>> print(bf.nested_block)
+    <31 == 0x1F == (0b11111 & 0b11111)
+      single_bit = <1 == 0x01 == (0b1 & 0b1)>
+      multiple   = <3 == 0x03 == (0b11 & 0b11)>
+    >
+
+
+Note: *negative indexes are not supported by design!*
 
 Testing
 =======
-The main test mechanism for the package `binfield` is using `tox`.
+Main test mechanism for the package `binfield` uses `tox`.
 Test environments available:
 
 ::
@@ -186,9 +206,9 @@ Test environments available:
 
 CI systems
 ==========
-For code checking several CI systems is used in parallel:
+For code checking several CI systems are used in parallel:
 
-1. `Travis CI: <https://travis-ci.org/penguinolog/binfield>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it's publishes coverage on coveralls.
+1. `Travis CI: <https://travis-ci.org/penguinolog/binfield>`_ is used for checking: PEP8, pylint, bandit, installation possibility and unit tests. Also it publishes coverage on coveralls.
 
 2. `coveralls: <https://coveralls.io/github/penguinolog/binfield>`_ is used for coverage display.
 
