@@ -54,116 +54,115 @@ Not mapped objects could be created simply from BinField class:
     bf = BinField(42)
 
 Data with fixed size should be created as new class (type):
-Example on real data (TCP header, constant part):
+Example on real data (ZigBee frame control field):
 
 .. code-block:: python
 
     # Describe
-    class TCPHeader(binfield.BinField):
-        _size_ = 160
-        _mask_ = 0xFFFFFFFFFFFFFF8FFFFFFFFFFFFFFFFFFFFFFFFF
-        source_port = [0, 16]
-        destination_port = [16, 32]
-        sequence_number = [32, 64]
-        ack_number = [64, 96]
-        data_offset = [96, 100]
-        flags = {
-            '_index_': [103, 112],
-            'NS': 0,
-            'CWR': 1,
-            'ECE': 2,
-            'URG': 3,
-            'ACK': 4,
-            'PSH': 5,
-            'RST': 6,
-            'SYN': 7,
-            'FIN': 8
-        }
-        window_size = [112, 128]
-        checksum = [128, 144]
-        urgent_pointer = [144, 160]
+    class ZBFrameControl(binfield.BinField):
+        _size_ = 16  # Optional, used as source for mask, if mask is not defined
+        _mask_ = 0xFF7F  # Optional, used as source for size, if size is not defined
+        FrameType = [0, 3]  # Enum
+        Security = 3
+        FramePending = 4
+        AckRequest = 5
+        PAN_ID_Compression = 6
+        SequrityNumberSuppress = 8
+        InformationPresent = 9
+        DstAddrMode = [10, 12]
+        FrameVersion =  [12, 14]
+        SrcAddrMode = [14, 16]
 
     # Construct from frame
     # (limitation: endianless convertation is not supported, make it by another tools)
-    header = TCPHeader(0x0000BD1A043708050000078B000007F601BBAF0A)
+    frame = frame = ZBFrameControl(0x0803)  # Beacon request
 
-    # Do not print header due to huge length (will be printed all bits)
-    >>> repr(header)
-    'TCPHeader(x=0x0000BD1A043708050000078B000007F601BBAF0A, base=16)'
+    >>> print(frame)
+    <2051 == 0x0803 == (0b0000100000000011 & 0b1111111111111111)
+      FrameType             = <3 == 0x03 == (0b011 & 0b111)>
+      Security               = <0 == 0x00 == (0b0 & 0b1)>
+      FramePending           = <0 == 0x00 == (0b0 & 0b1)>
+      AckRequest             = <0 == 0x00 == (0b0 & 0b1)>
+      PAN_ID_Compression     = <0 == 0x00 == (0b0 & 0b1)>
+      SequrityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
+      InformationPresent     = <0 == 0x00 == (0b0 & 0b1)>
+      DstAddrMode            = <2 == 0x02 == (0b10 & 0b11)>
+      FrameVersion           = <0 == 0x00 == (0b00 & 0b11)>
+      SrcAddrMode            = <0 == 0x00 == (0b00 & 0b11)>
 
-    >>> repr(header.source_port)
-    '<source_port(x=0xAF0A, base=16) at 0x7F890C8B9348>'
+    >>> repr(frame)
+    'ZBFrameControl(x=0x0803, base=16)'
 
-    >>> print(header.source_port)
-    <44810 == 0xAF0A == (0b1010111100001010 & 0b1111111111111111)>
+    >>> print(frame.FrameType)
+    <3 == 0x03 == (0b011 & 0b111)>  # Get nested structure: current is flat, so we have single value
 
-    >>> header.source_port == 44810  # Transparent comparsion with integers
+    # We can use slice to get bits from value: result type is always subclass of BinField
+    >>> repr(frame.FrameType[: 2])
+    '<FrameType_slice_0_2(x=0x03, base=16) at 0x7FD0ACA57408>'
+
+    >>> frame.FrameType == 3  # Transparent comparsion with integers
     True
 
-    >>> int(header.source_port)  # Painless conversion to int
-    44810
+    >>> int(frame.FrameType)  # Painless conversion to int
+    3
 
-    >>> print(header.destination_port)
-    <443 == 0x01BB == (0b0000000110111011 & 0b1111111111111111)> # Request multiple bytes
+    >>> bool(frame.AckRequest)  # And bool
+    False
 
-    >>> print(header.data_offset)  # Request multiple bits
-    <5 == 0x05 == (0b0101 & 0b1111)>
+    >>> print(frame[1: 5])  # Ignore indexes and just get few bits using slice
+    <1 == 0x01 == (0b0001 & 0b1111)>
 
-    >>> print(header.destination_port[1: 3])  # Request several bits from nested block too
-    <1 == 0x01 == (0b01 & 0b11)>
+    >>> print(ZBFrameControl.AckRequest)  # Request indexes from created data type
+    5
 
-    >>> print(header.flags)  # Request nested mapping block
-    <16 == 0x0010 == (0b000010000 & 0b111111111)
-      NS  = <0 == 0x00 == (0b0 & 0b1)>
-      CWR = <0 == 0x00 == (0b0 & 0b1)>
-      ECE = <0 == 0x00 == (0b0 & 0b1)>
-      URG = <0 == 0x00 == (0b0 & 0b1)>
-      ACK = <1 == 0x01 == (0b1 & 0b1)>
-      PSH = <0 == 0x00 == (0b0 & 0b1)>
-      RST = <0 == 0x00 == (0b0 & 0b1)>
-      SYN = <0 == 0x00 == (0b0 & 0b1)>
-      FIN = <0 == 0x00 == (0b0 & 0b1)>
-    >
-
-    >>> print(header.flags.ACK == 0x01)  # Request single bit from nested mapping
-    True
-
-    >>> print(header[: 4])  # Ignore indexes and just get few bits using slice
-    <10 == 0x0A == (0b1010 & 0b1111)>
+    >>> print(ZBFrameControl.DstAddrMode)  # Multiple bits too
+    slice(10, 12, None)
 
     # Modification of nested data (if no type conversion was used) changes original object:
-    header.flags.FIN = 1
-    >>> print(header.flags)
-    <272 == 0x0110 == (0b100010000 & 0b111111111)
-      NS  = <0 == 0x00 == (0b0 & 0b1)>
-      CWR = <0 == 0x00 == (0b0 & 0b1)>
-      ECE = <0 == 0x00 == (0b0 & 0b1)>
-      URG = <0 == 0x00 == (0b0 & 0b1)>
-      ACK = <1 == 0x01 == (0b1 & 0b1)>
-      PSH = <0 == 0x00 == (0b0 & 0b1)>
-      RST = <0 == 0x00 == (0b0 & 0b1)>
-      SYN = <0 == 0x00 == (0b0 & 0b1)>
-      FIN = <1 == 0x01 == (0b1 & 0b1)>
+    >>> frame.AckRequest = 1
+    >>> print(frame)
+    <2083 == 0x0823 == (0b0000100000100011 & 0b1111111101111111)
+      FrameType              = <3 == 0x03 == (0b011 & 0b111)>
+      Security               = <0 == 0x00 == (0b0 & 0b1)>
+      FramePending           = <0 == 0x00 == (0b0 & 0b1)>
+      AckRequest             = <1 == 0x01 == (0b1 & 0b1)>
+      PAN_ID_Compression     = <0 == 0x00 == (0b0 & 0b1)>
+      SequrityNumberSuppress = <0 == 0x00 == (0b0 & 0b1)>
+      InformationPresent     = <0 == 0x00 == (0b0 & 0b1)>
+      DstAddrMode            = <2 == 0x02 == (0b10 & 0b11)>
+      FrameVersion           = <0 == 0x00 == (0b00 & 0b11)>
+      SrcAddrMode            = <0 == 0x00 == (0b00 & 0b11)>
     >
 
-    # Indexes is accessible from base class
-    >>> print(TCPHeader.source_port)
-    slice(0, 16, None)
-
     # But remember, that nested blocks has it's own classes
-    >>> header.flags.__class__
-    <class 'binfield.binfield.flags'>
+    >>> repr(frame.DstAddrMode)
+    '<DstAddrMode(x=0x02, base=16) at 0x7FD0AD139548>'
+
+    >>> fr2 = ZBFrameControl(0xFFFF)
+    >>> repr(fr2)
+    'ZBFrameControl(x=0xFF7F, base=16)'  # Mask if applied, if defined
 
     # Fields could be set only from integers
-    >>> header2 = TCPHeader()
-    >>> header2.flags = header.flags
+    >>> frame.SrcAddrMode = fr2.SrcAddrMode
     Traceback (most recent call last):
     ...
     TypeError: BinField value could be set only as int
 
-    >>> header2.flags = int(header.flags)
-    >>> header2.flags
-    <flags(x=0x0110, base=16) at 0x7FBC9A21FFC8>
+    >>> repr(frame['FramePending'])  # __getitem__ and __setitem__ is supported
+    '<FramePending(x=0x00, base=16) at 0x7FD0ACAD3188>'
+
+
+Nested structures is supported, if required. Definition example (not aligned with any real data):
+
+.. code-block:: python
+
+    class NestedMappedBinField(BinField):
+        test_index = 0
+        nested_block = {
+            '_index_': (1, 6),
+            'single_bit': 0,
+            'multiple': (1, 3)
+        }
 
 
 Note: *negative indexes is not supported by design!*
