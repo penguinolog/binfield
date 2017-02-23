@@ -417,3 +417,13 @@ class BaseFunctionality(unittest.TestCase):
         # Nested is exposed as indexes only.
         # Use mapping, if details required.
         self.assertEqual(FullFilledBinField.test_nested, slice(5, 8))
+
+    def test_typing(self):
+        """Test, that very long ints and py2x long is supported"""
+        class LongBinField(BinField):
+            _size_ = 256
+            _mask_ = 0xDEADBEEF00BADDAD0123456789ABCDEF
+
+        LongBinField(
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        )

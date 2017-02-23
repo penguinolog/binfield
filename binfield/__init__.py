@@ -1,4 +1,4 @@
-#    Copyright 2016 Alexey Stepanov aka penguinolog
+#    Copyright 2016 - 2017 Alexey Stepanov aka penguinolog
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -15,5 +15,5 @@
 
 from .binfield import BinField
 
-__version__ = '0.7.2'
+__version__ = '0.7.3'
 __author__ = "Alexey Stepanov <penguinolog@gmail.com>"

@@ -1,4 +1,4 @@
-#    Copyright 2016 Alexey Stepanov aka penguinolog
+#    Copyright 2016 - 2017 Alexey Stepanov aka penguinolog
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -462,6 +462,9 @@ class BinFieldMeta(BaseMeta, type):
                 for base in sbases:
                     if base is not BinField and issubclass(base, BinField):
                         raise TypeError("Cannot extend BinField")
+
+                sns['__slots__'] = ()  # No any new fields on instances
+
                 return type.__new__(SubMeta, sname, sbases, sns)
 
         # pylint: enable=bad-mcs-classmethod-argument
@@ -504,7 +507,7 @@ BaseBinFieldMeta = BinFieldMeta.__new__(  # noqa
 # noinspection PyRedeclaration
 class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     """BinField representation"""
-    __slots__ = ['__value', '__parent_link', '__dict__']
+    __slots__ = ['__value', '__parent_link']
 
     _cache_ = {}  # Will be replaced by the same by metaclass, but helps lint
 

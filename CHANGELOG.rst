@@ -1,5 +1,11 @@
 CHANGELOG
 =========
+Version 0.7.3
+-------------
+* __slots__ on all classes
+
+* Unittest for large numbers (long on py27)
+
 Version 0.7.2
 -------------
 * Fixed documentation misprints
