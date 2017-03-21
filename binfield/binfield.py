@@ -11,7 +11,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""BinField module
+"""BinField module.
 
 Implements BinField in Python
 """
@@ -21,31 +21,20 @@ from __future__ import unicode_literals
 import collections
 import copy
 import math
-import sys
+
+import six
+
+__all__ = ('BinField', )
 
 
-_PY3 = sys.version_info[0:2] > (3, 0)
-
-
-if _PY3:
-    binary_type = bytes
-    text_type = str
-    int_types = int,
-else:
-    binary_type = str
-    # pylint: disable=unicode-builtin, undefined-variable, long-builtin
-    # noinspection PyUnresolvedReferences
-    text_type = unicode  # NOQA
-    # noinspection PyUnresolvedReferences
-    int_types = int, long  # NOQA
-    # pylint: enable=unicode-builtin, undefined-variable, long-builtin
-
-
-string_types = str if _PY3 else text_type, binary_type
+string_types = (
+    str if six.PY3
+    else six.text_type, six.binary_type
+)
 
 
 def _is_descriptor(obj):
-    """Returns True if obj is a descriptor, False otherwise."""
+    """Return True if obj is a descriptor, False otherwise."""
     return (
         hasattr(obj, '__get__') or
         hasattr(obj, '__set__') or
@@ -54,7 +43,7 @@ def _is_descriptor(obj):
 
 
 def _is_dunder(name):
-    """Returns True if a __dunder__ name, False otherwise."""
+    """Return True if a __dunder__ name, False otherwise."""
     return (name[:2] == name[-2:] == '__' and
             name[2:3] != '_' and
             name[-3:-2] != '_' and
@@ -62,7 +51,7 @@ def _is_dunder(name):
 
 
 def _is_sunder(name):
-    """Returns True if a _sunder_ name, False otherwise."""
+    """Return True if a _sunder_ name, False otherwise."""
     return (name[0] == name[-1] == '_' and
             name[1:2] != '_' and
             name[-2:-1] != '_' and
@@ -70,7 +59,7 @@ def _is_sunder(name):
 
 
 def _is_valid_slice(obj):
-    """Slice is valid for BinField operations
+    """Slice is valid for BinField operations.
 
     :type obj: slice
     :rtype: bool
@@ -84,7 +73,7 @@ def _is_valid_slice(obj):
 
 
 def _is_valid_slice_mapping(obj):
-    """Object is valid slice mapping
+    """Object is valid slice mapping.
 
     :rtype: bool
     """
@@ -96,7 +85,7 @@ def _is_valid_slice_mapping(obj):
 
 
 def _mapping_filter(item):
-    """Filter for naming records from namespace
+    """Filter for naming records from namespace.
 
     :param item: namespace item
     :type item: tuple
@@ -133,7 +122,7 @@ def _mapping_filter(item):
 
 
 def _get_index(val):
-    """Extract real index from index"""
+    """Extract real index from index."""
     if isinstance(val, int) or _is_valid_slice(val):
         return val
     if _is_valid_slice_mapping(val):
@@ -143,7 +132,7 @@ def _get_index(val):
 
 
 def _get_mask(start, end):
-    """Make default mask
+    """Make default mask.
 
     :type start: int
     :type end:  int
@@ -153,7 +142,7 @@ def _get_mask(start, end):
 
 
 def _get_start_index(src):
-    """Internal method for sorting mapping
+    """Internal method for sorting mapping.
 
     :param src: tuple from dict.items()
     :type src: tuple
@@ -165,7 +154,7 @@ def _get_start_index(src):
 
 
 def _prepare_mapping(mapping):
-    """Check indexes for intersections
+    """Check indexes for intersections.
 
     :type mapping: dict
     :rtype: collections.OrderedDict
@@ -176,7 +165,7 @@ def _prepare_mapping(mapping):
 
     # pylint: disable=undefined-loop-variable
     def check_update_mapping_mask(mask):
-        """Check mask for validity and return updated value
+        """Check mask for validity and return updated value.
 
         :type mask: int
         :rtype: int
@@ -249,7 +238,7 @@ def _prepare_mapping(mapping):
 
 
 def _make_mapping_property(key):
-    """Property generator. Fixing lazy calculation
+    """Property generator. Fixing lazy calculation.
 
     :rtype: property
     """
@@ -261,7 +250,7 @@ def _make_mapping_property(key):
 
 
 def _make_static_ro_property(name, val):
-    """Property generator for static cases
+    """Property generator for static cases.
 
     :type name: str
     :type val: object
@@ -273,8 +262,8 @@ def _make_static_ro_property(name, val):
 
 
 def _py2_str(src):
-    """Convert text to correct python type"""
-    if not _PY3 and isinstance(src, text_type):
+    """Convert text to correct python type."""
+    if not six.PY3 and isinstance(src, six.text_type):
         return src.encode(
             encoding='utf-8',
             errors='strict',
@@ -283,47 +272,52 @@ def _py2_str(src):
 
 
 class BaseBinFieldMeta(object):
-    """Fake class for BinFieldMeta compilation and class instance creation"""
+    """Fake class for BinFieldMeta compilation and class instance creation."""
+
     pass
 
 
 class BinField(object):
-    """Fake class for BinFieldMeta compilation"""
+    """Fake class for BinFieldMeta compilation."""
+
     pass
 
 
 class BaseMeta(type):
-    """Metaclass for BaseClass creation"""
+    """Metaclass for BaseClass creation."""
+
     @property
     def _value_(cls):
-        """This is instance only value"""
+        """Internal value (integer)."""
         return NotImplemented
 
     @property
     def _size_(cls):
-        """Only for sized (Not BaseClass)"""
+        """Only for sized (Not BaseClass)."""
         return NotImplemented
 
     @property
     def _bit_size_(cls):
-        """Only for sized (Not BaseClass)"""
+        """Only for sized (Not BaseClass)."""
         return NotImplemented
 
     @property
     def _mask_(cls):
-        """Only if mask presents (Not BaseClass)"""
+        """Only if mask presents (Not BaseClass)."""
         return NotImplemented
 
     @property
     def _mapping_(cls):
-        """Only for indexed (Not BaseClass)"""
+        """Only for indexed (Not BaseClass)."""
         return NotImplemented
 
 
 class BinFieldMeta(BaseMeta, type):
-    """Metaclass for BinField class and subclasses construction"""
+    """Metaclass for BinField class and subclasses construction."""
+
+    # noinspection PyInitNewSignature
     def __new__(mcs, name, bases, classdict):
-        """BinField metaclass
+        """BinField metaclass.
 
         :type name: str
         :type bases: tuple
@@ -369,7 +363,7 @@ class BinFieldMeta(BaseMeta, type):
         mask = classdict.pop('_mask_', mask_from_size)
 
         if mask is not None:
-            if not isinstance(mask, int_types):
+            if not isinstance(mask, six.integer_types):
                 raise TypeError(
                     'Pre-defined mask has invalid type: {!r}'.format(mask)
                 )
@@ -451,13 +445,13 @@ class BinFieldMeta(BaseMeta, type):
 
         # pylint: disable=bad-mcs-classmethod-argument
         class SubMeta(RealMeta, BinFieldMeta, type):
-            """Mixin metaclass for creating BinField subclasses
+            """Mixin metaclass for creating BinField subclasses.
 
             Properties is made in RealMeta and here we are creating new class
             by the single possible way (usage of super() is impossible).
             """
 
-            # noinspection PyMethodParameters
+            # noinspection PyMethodParameters,PyInitNewSignature
             def __new__(smcs, sname, sbases, sns):
                 for base in sbases:
                     if base is not BinField and issubclass(base, BinField):
@@ -469,11 +463,11 @@ class BinFieldMeta(BaseMeta, type):
 
         # pylint: enable=bad-mcs-classmethod-argument
 
-        return SubMeta.__new__(SubMeta, name, bases, classdict)
+        return type.__new__(SubMeta, name, bases, classdict)
 
     @classmethod
     def makecls(mcs, name, mapping=None, mask=None, size=None):
-        """Create new BinField subclass
+        """Create new BinField subclass.
 
         :param name: Class name
         :type name: str
@@ -492,21 +486,23 @@ class BinFieldMeta(BaseMeta, type):
         }
         if mapping is not None:
             classdict['_mapping_'] = mapping
+        # noinspection PyTypeChecker
         return mcs.__new__(mcs, name, (BinField, ), classdict)
 
 
 # noinspection PyRedeclaration
-BaseBinFieldMeta = BinFieldMeta.__new__(  # noqa
+BaseBinFieldMeta = type.__new__(  # noqa
     BinFieldMeta,
-    'BaseBinFieldMeta',
+    _py2_str('BaseBinFieldMeta'),
     (object, ),
     {'__slots__': ()}
 )
 
 
-# noinspection PyRedeclaration
+# noinspection PyRedeclaration,PyMissingConstructor
 class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
-    """BinField representation"""
+    """BinField representation."""
+
     __slots__ = ['__value', '__parent_link']
 
     _cache_ = {}  # Will be replaced by the same by metaclass, but helps lint
@@ -517,15 +513,18 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # pylint: disable=super-init-not-called
     def __init__(self, x=0, base=10, _parent=None):
-        """Creates new BinField object from integer value
+        """Create new BinField object from integer value.
 
         :param x: Start value
         :type x: int
         :param base: base for start value
         :type base: int
-        :type _parent: (BinField, slice)
+        :type _parent: typing.Tuple[BinField, slice]
         """
-        self.__value = x if isinstance(x, int_types) else int(x, base=base)
+        self.__value = (
+            x if isinstance(x, six.integer_types)
+            else int(x, base=base)
+        )
         if self._mask_:
             self.__value &= self._mask_
         self.__parent_link = _parent
@@ -542,12 +541,13 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return self._size_ if self._size_ else self._value_.bit_length()
 
     def __len__(self):
-        """Data length in bytes"""
+        """Data length in bytes."""
         length = int(math.ceil(self._bit_size_ / 8.))
         return length if length != 0 else 1
 
     @property
     def _value_(self):
+        """Internal value (integer)."""
         if self.__parent_link is not None:  # Update value from parent
             obj, offset = self.__parent_link
             self.__value = (obj & (self._mask_ << offset)) >> offset
@@ -556,6 +556,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # noinspection PyProtectedMember
     @_value_.setter
     def _value_(self, new_value):
+        """Internal value (integer)."""
         if self._mask_:
             new_value &= self._mask_
 
@@ -569,30 +570,37 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # integer methods
     def __int__(self):
+        """Conversion to normal int."""
         return self._value_
 
     def __index__(self):
-        """Special method used for bin()/hex/oct/slicing support"""
+        """Special method used for bin()/hex/oct/slicing support."""
         return int(self)
 
     # math operators
     def __abs__(self):
+        """int mimic."""
         return int(self)
 
     def __gt__(self, other):
+        """Comparing logic."""
         return int(self) > int(other)
 
     def __ge__(self, other):
+        """Comparing logic."""
         return int(self) >= int(other)
 
     def __lt__(self, other):
+        """Comparing logic."""
         return int(self) < int(other)
 
     def __le__(self, other):
+        """Comparing logic."""
         return int(self) <= int(other)
 
     # pylint: disable=protected-access
     def __eq__(self, other):
+        """Comparing logic."""
         # As integer
         if isinstance(other, (int, self.__class__)):
             return int(self) == other
@@ -607,35 +615,43 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # pylint: enable=protected-access
 
     def __ne__(self, other):
+        """Comparing logic."""
         return not self == other
 
     # Modify Bitwise operations
     def __iand__(self, other):
+        """int mimic."""
         self._value_ &= int(other)
         return self
 
     def __ior__(self, other):
+        """int mimic."""
         self._value_ |= int(other)
         return self
 
     def __ixor__(self, other):
+        """int mimic."""
         self._value_ ^= int(other)
         return self
 
     # Non modify operations: new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __and__(self, other):
+        """int mimic."""
         return self.__class__(int(self) & int(other))
 
     def __or__(self, other):
+        """int mimic."""
         return self.__class__(int(self) | int(other))
 
     def __xor__(self, other):
+        """int mimic."""
         return self.__class__(int(self) ^ int(other))
     # pylint: enable=no-value-for-parameter
 
     # Integer modify operations
     def __iadd__(self, other):
+        """int mimic."""
         res = int(self) + int(other)
         if self._size_ and self._size_ < res.bit_length():
             raise OverflowError(
@@ -649,12 +665,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return self
 
     def __isub__(self, other):
+        """int mimic."""
         return self.__iadd__(-other)
 
     # Integer non-modify operations. New object is BinField, if not overflow
     # new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __add__(self, other):
+        """int mimic."""
         res = int(self) + int(other)
         if res < 0:
             raise ValueError(
@@ -668,25 +686,31 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return self.__class__(res)
 
     def __sub__(self, other):
+        """int mimic."""
         return self.__add__(-other)
 
     # pylint: enable=no-value-for-parameter
 
     # Integer -> integer operations
     def __mul__(self, other):
+        """int mimic."""
         return int(self) * other
 
     def __lshift__(self, other):
+        """int mimic."""
         return int(self) << other
 
     def __rshift__(self, other):
+        """int mimic."""
         return int(self) >> other
 
     def __bool__(self):
+        """int mimic."""
         return bool(int(self))
 
     # Data manipulation: hash, pickle
     def __hash__(self):
+        """Usage for indexes."""
         return hash((
             self.__class__,
             self._value_,
@@ -696,11 +720,16 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # pylint: disable=no-value-for-parameter
     def __copy__(self):
+        """Copy logic.
+
+        Uplink is destroyed on copy.
+        """
         return self.__class__(self._value_)
 
     # pylint: enable=no-value-for-parameter
 
     def __getstate__(self):
+        """Pickling."""
         if self.__parent_link:
             raise ValueError('Linked BinFields does not supports pickle')
         return {
@@ -708,13 +737,15 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         }
 
     def __getnewargs__(self):  # PYPY requires this
+        """required for pickle."""
         return ()
 
     def __setstate__(self, state):
+        """Restore from pickle."""
         self.__init__(**state)  # getstate returns enough data for __init__
 
     def _get_child_cls_(self, mask, name, cls_mask, size, mapping=None):
-        """Get child class with memorize support
+        """Get child class with memorize support.
 
         :type mask:int
         :type name: str
@@ -738,7 +769,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # Access as dict
     def _getslice_(self, item, mapping=None, name=None):
-        """Get slice from self
+        """Get slice from self.
 
         :type item: slice
         :type mapping: dict
@@ -787,7 +818,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return cls((int(self) & mask) >> start, _parent=(self, start))
 
     def __getitem__(self, item):
-        """Extract bits
+        """Extract bits.
 
         :type item: union(str, int, slice, tuple, list)
         :rtype: BinField
@@ -832,7 +863,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         raise IndexError(item)
 
     def _setslice_(self, key, value):
-        """Set value by slice
+        """Set value by slice.
 
         :type key: slice
         :type value: int
@@ -871,7 +902,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         self._value_ = self._value_ & ~get_mask | value
 
     def __setitem__(self, key, value):
-        """Indexed setter
+        """Indexed setter.
 
         :type key: union(str, int, slice, list, tuple)
         :type value: int
@@ -919,6 +950,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         indent,
         no_indent_start
     ):
+        """real __str__ code."""
         indent = 0 if no_indent_start else indent
         indent_step = 2 if parser is None else parser.indent_step
         max_indent = 20 if parser is None else parser.max_indent
@@ -935,6 +967,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         )
 
     def __str__(self):
+        """__str__ for usage in print."""
         # noinspection PyTypeChecker
         return self.__pretty_str__(None, 0, True)
 
@@ -944,6 +977,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         indent,
         no_indent_start
     ):
+        """real __repr__ code."""
         indent = 0 if no_indent_start else indent
         if self.__parent_link:
             pre = '<'
@@ -963,9 +997,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         )
 
     def __repr__(self):
+        """__repr__ for logging/debugging usage."""
         return self.__pretty_repr__(None, 0, True)
 
     def __dir__(self):
+        """__dir__ wrapper (used as completion-helper)."""
         if self._mapping_ is not None:
             # pylint: disable=no-member
             keys = list(sorted(self._mapping_.keys()))
@@ -985,7 +1021,7 @@ class _Formatter(object):
         py2_str=False,
 
     ):
-        """BinField dedicated str formatter
+        """BinField dedicated str formatter.
 
         :param max_indent: maximal indent before classic repr() call
         :type max_indent: int
@@ -996,19 +1032,19 @@ class _Formatter(object):
         """
         self.__max_indent = max_indent
         self.__indent_step = indent_step
-        self.__py2_str = py2_str and not _PY3
+        self.__py2_str = py2_str and not six.PY3
         # Python 2 only behavior
 
     @property
     def indent_step(self):
-        """Indent step getter
+        """Indent step getter.
 
         :rtype: int
         """
         return self.__indent_step
 
     def next_indent(self, indent, multiplier=1):
-        """Next indentation value
+        """Next indentation value.
 
         :param indent: current indentation value
         :type indent: int
@@ -1020,14 +1056,14 @@ class _Formatter(object):
 
     @property
     def max_indent(self):
-        """Max indent getter
+        """Max indent getter.
 
         :rtype: int
         """
         return self.__max_indent
 
     def _str_bf_items(self, src, indent=0):
-        """repr dict items
+        """repr dict items.
 
         :param src: object to process
         :type src: dict
@@ -1052,7 +1088,7 @@ class _Formatter(object):
     # pylint: disable=protected-access
     # noinspection PyUnresolvedReferences,PyProtectedMember
     def process_element(self, src, indent=0, no_indent_start=False):
-        """Make human readable representation of object
+        """Make human readable representation of object.
 
         :param src: object to process
         :type src: BinField
@@ -1115,7 +1151,7 @@ class _Formatter(object):
         indent=0,
         no_indent_start=False
     ):
-        """Make human readable representation of object
+        """Make human readable representation of object.
 
         :param src: object to process
         :type src: union(binary_type, text_type, int, iterable, object)
@@ -1137,6 +1173,3 @@ class _Formatter(object):
                 errors='backslashreplace',
             )
         return result
-
-
-__all__ = ['BinField']

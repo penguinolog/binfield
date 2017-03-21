@@ -54,4 +54,5 @@ setuptools.setup(
     author_email='penguinolog@gmail.com',
     description='Python BinField implementation for binary data manipulation',
     long_description=long_description,
+    install_requires=['six'],
 )
