@@ -15,44 +15,6 @@
 
 import setuptools
 
-import binfield
-
-with open('README.rst') as f:
-    long_description = f.read()
-
 setuptools.setup(
     name='BinField',
-    version=binfield.__version__,
-    packages=setuptools.find_packages(),
-    classifiers=[
-        'Development Status :: 4 - Beta',
-
-        # Indicate who your project is intended for
-        'Intended Audience :: Developers',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-
-        'License :: OSI Approved :: Apache Software License',
-
-        # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
-        'Programming Language :: Python :: Implementation :: Jython',
-    ],
-    keywords='binary binfield development',
-    url='https://github.com/penguinolog/binfield',
-    license='Apache License, Version 2.0',
-    author='Alexey Stepanov',
-    author_email='penguinolog@gmail.com',
-    description='Python BinField implementation for binary data manipulation',
-    long_description=long_description,
-    install_requires=['six'],
 )
