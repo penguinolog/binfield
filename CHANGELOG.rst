@@ -1,5 +1,9 @@
 CHANGELOG
 =========
+Version 0.7.5
+-------------
+Use version extraction like logwrap.
+
 Version 0.7.4
 -------------
 six library usage.

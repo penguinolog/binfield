@@ -13,8 +13,66 @@
 
 """Python BinField implementation"""
 
+import ast
+import collections
+import os.path
+import sys
+
 import setuptools
+
+PY3 = sys.version_info[:2] > (2, 7)
+PY34 = sys.version_info[:2] > (3, 3)
+
+with open(
+    os.path.join(
+        os.path.dirname(__file__),
+        'binfield', '__init__.py'
+    )
+) as f:
+    source = f.read()
+
+
+# noinspection PyUnresolvedReferences
+def get_simple_vars_from_src(src):
+    """Get simple (string/number/boolean and None) assigned values from source.
+
+    :param src: Source code
+    :type src: str
+    :rtype: collections.OrderedDict
+    """
+    ast_data = (ast.Str, ast.Num, )
+    if PY3:
+        ast_data += (ast.Bytes,)
+
+    tree = ast.parse(src)
+
+    result = collections.OrderedDict()
+
+    for node in ast.iter_child_nodes(tree):
+        if not isinstance(node, ast.Assign):  # We parse assigns only
+            continue
+        for tgt in node.targets:
+            if isinstance(
+                tgt, ast.Name
+            ) and isinstance(
+                tgt.ctx, ast.Store
+            ):
+                if isinstance(node.value, ast_data):
+                    result[tgt.id] = ast.literal_eval(node.value)
+                elif isinstance(  # NameConstant in python < 3.4
+                    node.value, ast.Name
+                ) and isinstance(
+                    node.value.ctx, ast.Load  # Read constant
+                ):
+                    result[tgt.id] = ast.literal_eval(node.value)
+                elif PY34 and isinstance(node.value, ast.NameConstant):
+                    result[tgt.id] = ast.literal_eval(node.value)
+    return result
+
+
+variables = get_simple_vars_from_src(source)
 
 setuptools.setup(
     name='BinField',
+    version=variables['__version__'],
 )
