@@ -17,6 +17,7 @@ import ast
 import collections
 import glob
 import os.path
+import sys
 from sphinx.apidoc import main as sphinx_apidoc_main
 
 with open(
@@ -26,6 +27,9 @@ with open(
     )
 ) as f:
     source = f.read()
+
+PY3 = sys.version_info[:2] > (2, 7)
+PY34 = sys.version_info[:2] > (3, 3)
 
 
 # noinspection PyUnresolvedReferences
