@@ -1,5 +1,10 @@
 CHANGELOG
 =========
+Version 0.7.6
+-------------
+Update setup.py from doctedsted get_simple_vars_from_src.
+extract requirements
+
 Version 0.7.5
 -------------
 Use version extraction like logwrap.

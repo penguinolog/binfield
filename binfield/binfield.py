@@ -547,7 +547,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     @property
     def _value_(self):
-        """Internal value (integer)."""
+        """Internal value (integer).
+
+        :rtype: int
+        """
         if self.__parent_link is not None:  # Update value from parent
             obj, offset = self.__parent_link
             self.__value = (obj & (self._mask_ << offset)) >> offset
@@ -556,7 +559,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # noinspection PyProtectedMember
     @_value_.setter
     def _value_(self, new_value):
-        """Internal value (integer)."""
+        """Internal value (integer).
+
+        :type new_value: int
+        """
         if self._mask_:
             new_value &= self._mask_
 
@@ -570,37 +576,61 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # integer methods
     def __int__(self):
-        """Conversion to normal int."""
+        """Conversion to normal int.
+
+        :rtype: int
+        """
         return self._value_
 
     def __index__(self):
-        """Special method used for bin()/hex/oct/slicing support."""
+        """Special method used for bin()/hex/oct/slicing support.
+
+        :rtype: int
+        """
         return int(self)
 
     # math operators
     def __abs__(self):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: int
+        """
         return int(self)
 
     def __gt__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         return int(self) > int(other)
 
     def __ge__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         return int(self) >= int(other)
 
     def __lt__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         return int(self) < int(other)
 
     def __le__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         return int(self) <= int(other)
 
     # pylint: disable=protected-access
     def __eq__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         # As integer
         if isinstance(other, (int, self.__class__)):
             return int(self) == other
@@ -615,7 +645,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # pylint: enable=protected-access
 
     def __ne__(self, other):
-        """Comparing logic."""
+        """Comparing logic.
+
+        :rtype: bool
+        """
         return not self == other
 
     # Modify Bitwise operations
@@ -637,15 +670,24 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # Non modify operations: new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __and__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: BinField
+        """
         return self.__class__(int(self) & int(other))
 
     def __or__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: BinField
+        """
         return self.__class__(int(self) | int(other))
 
     def __xor__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: BinField
+        """
         return self.__class__(int(self) ^ int(other))
     # pylint: enable=no-value-for-parameter
 
@@ -672,7 +714,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     # new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __add__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: BinField
+        """
         res = int(self) + int(other)
         if res < 0:
             raise ValueError(
@@ -693,19 +738,31 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # Integer -> integer operations
     def __mul__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: int
+        """
         return int(self) * other
 
     def __lshift__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: int
+        """
         return int(self) << other
 
     def __rshift__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: int
+        """
         return int(self) >> other
 
     def __bool__(self):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: bool
+        """
         return bool(int(self))
 
     # Data manipulation: hash, pickle

@@ -201,8 +201,8 @@ Test environments available:
     py36
     pypy
     pypy3
-    jyton
     pylint
+    docs
 
 CI systems
 ==========
