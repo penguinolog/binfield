@@ -8,8 +8,9 @@
 Contents:
 
 .. toctree::
-   :maxdepth: 2
-   modules
+    :maxdepth: 2
+
+    binfield
 
 Indices and tables
 ==================

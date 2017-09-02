@@ -519,7 +519,8 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :type x: int
         :param base: base for start value
         :type base: int
-        :type _parent: typing.Tuple[BinField, slice]
+        :param _parent: Parent link. For internal usage only.
+        :type _parent: typing.Optional[typing.Tuple[BinField, slice]]
         """
         self.__value = (
             x if isinstance(x, six.integer_types)
@@ -716,7 +717,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def __add__(self, other):
         """int mimic.
 
-        :rtype: BinField
+        :rtype: typing.Union[int, BinField]
         """
         res = int(self) + int(other)
         if res < 0:
@@ -731,7 +732,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         return self.__class__(res)
 
     def __sub__(self, other):
-        """int mimic."""
+        """int mimic.
+
+        :rtype: typing.Union[int, BinField]
+        """
         return self.__add__(-other)
 
     # pylint: enable=no-value-for-parameter
@@ -779,14 +783,19 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def __copy__(self):
         """Copy logic.
 
-        Uplink is destroyed on copy.
+        :rtype: BinField
+
+        .. note:: Uplink is destroyed on copy.
         """
         return self.__class__(self._value_)
 
     # pylint: enable=no-value-for-parameter
 
     def __getstate__(self):
-        """Pickling."""
+        """Pickling.
+
+        :rtype: typing.Dict[str: int]
+        """
         if self.__parent_link:
             raise ValueError('Linked BinFields does not supports pickle')
         return {
@@ -794,21 +803,32 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         }
 
     def __getnewargs__(self):  # PYPY requires this
-        """required for pickle."""
+        """required for pickle.
+
+        :rtype: typing.Tuple
+        """
         return ()
 
     def __setstate__(self, state):
-        """Restore from pickle."""
+        """Restore from pickle.
+
+        :type state: typing.Dict[str: int]
+        """
         self.__init__(**state)  # getstate returns enough data for __init__
 
     def _get_child_cls_(self, mask, name, cls_mask, size, mapping=None):
         """Get child class with memorize support.
 
-        :type mask:int
+        :type mask: int
         :type name: str
-        :type mapping: dict
-        :param cls_mask: int
-        :param size: int
+        :type cls_mask: int
+        :type size: int
+        :type mapping: typing.Optional[
+                           typing.Dict[
+                               str,
+                               typing.Union[slice, int, typing.Dict]
+                           ]
+                       ]
         """
         # Memorize
         # pylint: disable=protected-access
@@ -829,8 +849,8 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """Get slice from self.
 
         :type item: slice
-        :type mapping: dict
-        :type name: str
+        :type mapping: typing.Optional[typing.Dict]
+        :type name: typing.Optional[str]
         :rtype: BinField
         """
         if item.start is None and item.stop is None:
@@ -1224,7 +1244,7 @@ class _Formatter(object):
             indent=indent,
             no_indent_start=no_indent_start
         )
-        if self.__py2_str:
+        if self.__py2_str:  # pragma: no cover
             return result.encode(
                 encoding='utf-8',
                 errors='backslashreplace',
