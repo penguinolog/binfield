@@ -11,6 +11,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+# cython: binding=True, embedsignature=True
+
 """BinField module.
 
 Implements BinField in Python

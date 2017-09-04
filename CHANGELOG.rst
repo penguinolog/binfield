@@ -1,5 +1,9 @@
 CHANGELOG
 =========
+Version 0.8.0
+-------------
+Cytonize binfield, if possible.
+
 Version 0.7.6
 -------------
 Update setup.py from doctedsted get_simple_vars_from_src.

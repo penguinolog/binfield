@@ -1,0 +1,2 @@
+Cython; platform_python_implementation == "CPython"
+-r requirements.txt

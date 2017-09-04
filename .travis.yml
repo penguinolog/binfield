@@ -15,15 +15,16 @@ after_success:
   - coveralls
 notifications:
   email: true
+before_deploy:
+  - pip install -r build_requirements.txt
 deploy:
   - provider: pypi
-    distributions: sdist bdist_wheel
+    distributions: sdist bdist_wheel bdist_egg
     server: https://testpypi.python.org/pypi
     user: penguinolog
     password:
       secure: W3FhBk/wSbsadb1lzafwZINWWnEIV5QvlWjqXB2p1HI+TU+RBQLATYljUsIr/V5sU3sheUg+0O7uUpRyeA1QVsqp0swNZI6v5q++yqlCnYUyWgT/HfkzqdBpm2HkHqShZo7U7rlwAXJJyDzlANfDsq9elztmlLUo2k6QHHa6+09fOH+x7qFoEauysnxniW4i9F3NHlJFgVzkR4iCE7SoaJOqY24357g5vwcQbTEAPto9g6EdJlvlzggBu4eJlKgqa//x1+8sMwbuAnV0FlxCN+ty4nMns/Aocdh3FlvyEbc1ndEV7runARsaCwdRDgrDD3iv/XPFL8Q2xN1gRiB2yUWr2p2UbTV2RJYvPYwl/7tNp2hKXtRiU95TC0DL2XP69KhS+FedFBZ9WiIO6ZnkhlDd6PlO/9GRBOsK8AK1qaeMVvFYacgX77mKSIjguwtLpmwtaIJgRm/DMKK1SWi1LswSUW6oDAFKJTUedTkQ86XFpqYf0zxY6JGg8sqLDXntIpeSAjng9A8KWiGLXM1Kh7xvAm2FLvAHyox9kufYDdkFVzMYPWmz1+D4hSJReqm8YS5srawbNiAsDNAg3wgwydB8drrlGpOMu688NwBhWPgTCZHZnRtR1foGCD5rEHELIP7ja8J8Afupwtjgg+wFEaHMY8F9p9Vqy4sbiTPBr6A=
     on:
-      python: 3.5
       tags: false
     # PyPI
   - provider: pypi

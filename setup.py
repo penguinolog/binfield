@@ -18,6 +18,10 @@ import collections
 import os.path
 import sys
 
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    cythonize = None
 import setuptools
 
 PY3 = sys.version_info[:2] > (2, 7)
@@ -33,6 +37,20 @@ with open(
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
+
+
+def _extension(modpath):
+    """Make setuptools.Extension."""
+    return setuptools.Extension(modpath, [modpath.replace('.', '/') + '.py'])
+
+
+requires_optimization = [
+    _extension('binfield.binfield'),
+]
+
+ext_modules = cythonize(
+    requires_optimization
+) if cythonize is not None else ()
 
 
 # noinspection PyUnresolvedReferences
@@ -127,4 +145,5 @@ setuptools.setup(
     name='BinField',
     version=variables['__version__'],
     install_requires=required,
+    ext_modules=ext_modules,
 )
