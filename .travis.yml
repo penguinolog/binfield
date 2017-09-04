@@ -19,7 +19,7 @@ before_deploy:
   - pip install -r build_requirements.txt
 deploy:
   - provider: pypi
-    distributions: sdist bdist_wheel bdist_egg
+    distributions: sdist bdist_egg
     server: https://testpypi.python.org/pypi
     user: penguinolog
     password:
@@ -28,7 +28,7 @@ deploy:
       tags: false
     # PyPI
   - provider: pypi
-    distributions: sdist bdist_wheel
+    distributions: sdist bdist_egg
     user: penguinolog
     password:
       secure: cqEVQkkhyEqFyvf0aPLuCRRneV8Hc6ZTPKDxdbQHzfFSb0APp268/z2ASKtqFx5jydogFr+IZ9RE5biOYAMLDxTUtmSjvDIjqbtmm7QrJFWLVPGi5TUtGettsz18pzFVQudERQ7k8EhGnHpvIeGA9IEmSwC3+1xseZrHIBnOnAMRxnPIJbgJtkKno8nazqxeRcdm5KOUrH0Bb4UEtVdL8KPOEXjTFj4etLAQzdrkGjZsUTxTY7CTuckSCXfsqIcDmwUdgUkFQANDu2HtxoR+u6eVJ1J4XPfyaEWd2KYMmfXxKNGosmznict37LiQmPCpWwyw5jpJ2cPByav7LJZCjymH304SBpVVnIu1aeQtWa3TG/CSZ4nJizJaCNHSzJryw8CJFrgYwByPdSM3nQo/EqZUv/yJKqYMkkvnZw8569MApY+mTSiYcj549duppICMeUl465+Un7PhscK7fFvzGzy/lIA7uNCVtX9uvwE8HZrsxeCUk2zAEGXwzGzYZrQ0mN/ufwouWPt75BWErUEDn1Azr0+6zrBqdXmvDj8mdKwQdasB0ATWTsy5sH/ZJzutctA018CDY9pa1vrbLvQNHVwCYjXxoYzCN6Jxqh5PDeHXm/DyBSSQK+omxfYpS/Aj/h0GvvTTYMHhEAoD7bxKM4tclgtE8aMDu4POI5cBtsA=
