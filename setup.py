@@ -13,6 +13,8 @@
 
 """Python BinField implementation"""
 
+from __future__ import print_function
+
 import ast
 import collections
 from distutils.command import build_ext
