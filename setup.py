@@ -198,9 +198,10 @@ setup_args = dict(
     name='BinField',
     version=variables['__version__'],
     install_requires=required,
-    ext_modules=ext_modules,
-    cmdclass=dict(build_ext=AllowFailRepair)
 )
+if cythonize is not None:
+    setup_args['ext_modules'] = ext_modules
+    setup_args['cmdclass'] = dict(build_ext=AllowFailRepair)
 
 try:
     setuptools.setup(**setup_args)
