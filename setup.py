@@ -18,6 +18,7 @@ import collections
 from distutils.command import build_ext
 import distutils.errors
 import os.path
+import shutil
 import sys
 
 try:
@@ -48,10 +49,16 @@ def _extension(modpath):
 
 requires_optimization = [
     _extension('binfield.binfield'),
+    _extension('binfield.__init__'),
 ]
 
 ext_modules = cythonize(
-    requires_optimization
+    requires_optimization,
+    compiler_directives=dict(
+        always_allow_keywords=True,
+        binding=True,
+        embedsignature=True,
+    )
 ) if cythonize is not None else ()
 
 
@@ -60,13 +67,26 @@ class BuildFailed(Exception):
     pass
 
 
-class ve_build_ext(build_ext.build_ext):
-    """This class allows C extension building to fail."""
+class AllowFailRepair(build_ext.build_ext):
+    """This class allows C extension building to fail and repairs init."""
 
     def run(self):
         """Run."""
         try:
             build_ext.build_ext.run(self)
+
+            # Copy __init__.py back to repair package.
+            build_dir = os.path.abspath(self.build_lib)
+            root_dir = os.path.abspath(os.path.join(__file__, '..'))
+            target_dir = build_dir if not self.inplace else root_dir
+
+            src_file = os.path.join('binfield', '__init__.py')
+
+            src = os.path.join(root_dir, src_file)
+            dst = os.path.join(target_dir, src_file)
+
+            if src != dst:
+                shutil.copyfile(src, dst)
         except (
             distutils.errors.DistutilsPlatformError,
             FileNotFoundError
@@ -179,7 +199,7 @@ setup_args = dict(
     version=variables['__version__'],
     install_requires=required,
     ext_modules=ext_modules,
-    cmdclass=dict(build_ext=ve_build_ext)
+    cmdclass=dict(build_ext=AllowFailRepair)
 )
 
 try:

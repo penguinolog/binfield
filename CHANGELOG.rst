@@ -2,6 +2,10 @@ CHANGELOG
 =========
 Version 0.8.2
 -------------
+Fix no __init__ in wheel.
+
+Version 0.8.2
+-------------
 Allow cythonize failure
 
 Version 0.8.0
