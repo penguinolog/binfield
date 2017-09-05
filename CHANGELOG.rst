@@ -1,5 +1,9 @@
 CHANGELOG
 =========
+Version 0.8.2
+-------------
+Allow cythonize failure
+
 Version 0.8.0
 -------------
 Cytonize binfield, if possible.

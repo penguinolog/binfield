@@ -15,6 +15,8 @@
 
 import ast
 import collections
+from distutils.command import build_ext
+import distutils.errors
 import os.path
 import sys
 
@@ -51,6 +53,37 @@ requires_optimization = [
 ext_modules = cythonize(
     requires_optimization
 ) if cythonize is not None else ()
+
+
+class BuildFailed(Exception):
+    """For install clear scripts."""
+    pass
+
+
+class ve_build_ext(build_ext.build_ext):
+    """This class allows C extension building to fail."""
+
+    def run(self):
+        """Run."""
+        try:
+            build_ext.build_ext.run(self)
+        except (
+            distutils.errors.DistutilsPlatformError,
+            FileNotFoundError
+        ):
+            raise BuildFailed()
+
+    def build_extension(self, ext):
+        """build_extension."""
+        try:
+            build_ext.build_ext.build_extension(self, ext)
+        except (
+            distutils.errors.CCompilerError,
+            distutils.errors.DistutilsExecError,
+            distutils.errors.DistutilsPlatformError,
+            ValueError
+        ):
+            raise BuildFailed()
 
 
 # noinspection PyUnresolvedReferences
@@ -141,9 +174,23 @@ def get_simple_vars_from_src(src):
 
 variables = get_simple_vars_from_src(source)
 
-setuptools.setup(
+setup_args = dict(
     name='BinField',
     version=variables['__version__'],
     install_requires=required,
     ext_modules=ext_modules,
+    cmdclass=dict(build_ext=ve_build_ext)
 )
+
+try:
+    setuptools.setup(**setup_args)
+except BuildFailed:
+    print(
+        '*' * 80 + '\n'
+        '* Build Failed!\n'
+        '* Use clear scripts version.\n'
+        '*' * 80 + '\n'
+    )
+    del setup_args['ext_modules']
+    del setup_args['cmdclass']
+    setuptools.setup(**setup_args)

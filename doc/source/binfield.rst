@@ -11,7 +11,7 @@ API: `BinField` class.
     BinField representation.
 
     :param x: Start value
-    :type x: int
+    :type x: typing.Union[int, str, bytes]
     :param base: base for start value
     :type base: int
     :param _parent: Parent link. For internal usage only.

@@ -518,7 +518,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """Create new BinField object from integer value.
 
         :param x: Start value
-        :type x: int
+        :type x: typing.Union[int, str, bytes]
         :param base: base for start value
         :type base: int
         :param _parent: Parent link. For internal usage only.
@@ -590,7 +590,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: int
         """
-        return int(self)
+        return self._value_
 
     # math operators
     def __abs__(self):
@@ -598,35 +598,35 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: int
         """
-        return int(self)
+        return self._value_
 
     def __gt__(self, other):
         """Comparing logic.
 
         :rtype: bool
         """
-        return int(self) > int(other)
+        return self._value_ > int(other)
 
     def __ge__(self, other):
         """Comparing logic.
 
         :rtype: bool
         """
-        return int(self) >= int(other)
+        return self._value_ >= int(other)
 
     def __lt__(self, other):
         """Comparing logic.
 
         :rtype: bool
         """
-        return int(self) < int(other)
+        return self._value_ < int(other)
 
     def __le__(self, other):
         """Comparing logic.
 
         :rtype: bool
         """
-        return int(self) <= int(other)
+        return self._value_ <= int(other)
 
     # pylint: disable=protected-access
     def __eq__(self, other):
@@ -636,11 +636,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         # As integer
         if isinstance(other, (int, self.__class__)):
-            return int(self) == other
+            return self._value_ == other
         if isinstance(other, BinField):
             # noinspection PyUnresolvedReferences,PyProtectedMember
             return (
-                int(self) == int(other) and
+                self._value_ == other._value_ and
                 self._mapping_ == other._mapping_ and
                 len(self) == len(other)
             )
@@ -677,27 +677,27 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: BinField
         """
-        return self.__class__(int(self) & int(other))
+        return self.__class__(self._value_ & int(other))
 
     def __or__(self, other):
         """int mimic.
 
         :rtype: BinField
         """
-        return self.__class__(int(self) | int(other))
+        return self.__class__(self._value_ | int(other))
 
     def __xor__(self, other):
         """int mimic.
 
         :rtype: BinField
         """
-        return self.__class__(int(self) ^ int(other))
+        return self.__class__(self._value_ ^ int(other))
     # pylint: enable=no-value-for-parameter
 
     # Integer modify operations
     def __iadd__(self, other):
         """int mimic."""
-        res = int(self) + int(other)
+        res = self._value_ + int(other)
         if self._size_ and self._size_ < res.bit_length():
             raise OverflowError(
                 'Result value {} not fill in '
@@ -721,12 +721,12 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: typing.Union[int, BinField]
         """
-        res = int(self) + int(other)
+        res = self._value_ + int(other)
         if res < 0:
             raise ValueError(
                 'BinField could not be negative! '
                 'Value {} is bigger, than {}'.format(
-                    other, int(self)
+                    other, self._value_
                 )
             )
         if self._size_ and self._size_ < res.bit_length():
@@ -748,28 +748,28 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: int
         """
-        return int(self) * other
+        return self._value_ * other
 
     def __lshift__(self, other):
         """int mimic.
 
         :rtype: int
         """
-        return int(self) << other
+        return self._value_ << other
 
     def __rshift__(self, other):
         """int mimic.
 
         :rtype: int
         """
-        return int(self) >> other
+        return self._value_ >> other
 
     def __bool__(self):
         """int mimic.
 
         :rtype: bool
         """
-        return bool(int(self))
+        return bool(self._value_)
 
     # Data manipulation: hash, pickle
     def __hash__(self):
@@ -894,7 +894,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             size=stop - start,
             mapping=mapping,
         )
-        return cls((int(self) & mask) >> start, _parent=(self, start))
+        return cls((self._value_ & mask) >> start, _parent=(self, start))
 
     def __getitem__(self, item):
         """Extract bits.
@@ -1069,7 +1069,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
                 indent=indent,
                 pre=pre,
                 cls=self.__class__.__name__,
-                x=int(self),
+                x=self._value_,
                 len=len(self) * 2,
                 post=post
             )
@@ -1201,7 +1201,7 @@ class _Formatter(object):
                     nl='\n' if no_indent_start else '',
                     spc='',
                     indent=indent,
-                    data=int(src),
+                    data=src._value_,
                     length=len(src) * 2,
                     bit_length=src._bit_size_,
                     mask=mask,
@@ -1216,7 +1216,7 @@ class _Formatter(object):
             ''.format(
                 spc='',
                 indent=indent,
-                data=int(src),
+                data=src._value_,
                 length=len(src) * 2,
                 blength=src._bit_size_,
                 mask=mask
