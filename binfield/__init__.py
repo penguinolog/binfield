@@ -15,5 +15,11 @@
 
 from .binfield import BinField
 
-__version__ = '0.8.3'
-__author__ = "Alexey Stepanov <penguinolog@gmail.com>"
+__version__ = '0.9.0'
+__author__ = "Alexey Stepanov"
+__author_email__ = 'penguinolog@gmail.com'
+__url__ = 'https://github.com/penguinolog/binfield'
+__description__ = (
+    "Python BinField implementation for binary data manipulation"
+)
+__license__ = "Apache License, Version 2.0"

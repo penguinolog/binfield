@@ -43,6 +43,9 @@ with open(
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
+with open('README.rst',) as f:
+    long_description = f.read()
+
 
 def _extension(modpath):
     """Make setuptools.Extension."""
@@ -196,9 +199,42 @@ def get_simple_vars_from_src(src):
 
 variables = get_simple_vars_from_src(source)
 
+classifiers = [
+    'Development Status :: 4 - Beta',
+
+    'Intended Audience :: Developers',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+
+    'License :: OSI Approved :: Apache Software License',
+
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Python :: 3.6',
+
+    'Programming Language :: Python :: Implementation :: CPython',
+    'Programming Language :: Python :: Implementation :: PyPy',
+]
+
+keywords = [
+    'binary',
+    'binfield',
+    'development',
+]
+
 setup_args = dict(
     name='BinField',
+    author=variables['__author__'],
+    author_email=variables['__author_email__'],
+    url=variables['__url__'],
     version=variables['__version__'],
+    license=variables['__license__'],
+    description=variables['__description__'],
+    long_description=long_description,
+    classifiers=classifiers,
+    keywords=keywords,
     install_requires=required,
 )
 if cythonize is not None:

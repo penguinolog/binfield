@@ -334,7 +334,7 @@ class BinFieldMeta(BaseMeta, type):
         ):
             # Top level baseclass: cleanup
             for key in ('_value_', '_size_', '_mask_', '_mapping_'):
-                classdict.pop(key, None)
+                classdict.pop(key, None)  # pragma: no cover
             return super(
                 BinFieldMeta,
                 mcs
