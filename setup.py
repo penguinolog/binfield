@@ -63,6 +63,7 @@ ext_modules = cythonize(
         always_allow_keywords=True,
         binding=True,
         embedsignature=True,
+        overflowcheck=True,
     )
 ) if cythonize is not None else ()
 
