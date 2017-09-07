@@ -22,7 +22,7 @@ jobs:
     python: *mainstream_python
     install:
     - *upgrade_python_toolset
-    - pip install pytest pytest-sugar
+    - pip install pytest pytest-sugar pytest-cov
     - pip install -r build_requirements.txt
     script:
     - python setup.py bdist_wheel
