@@ -27,10 +27,10 @@ try:
     from Cython.Build import cythonize
 except ImportError:
     cythonize = None
+
 import setuptools
 
 PY3 = sys.version_info[:2] > (2, 7)
-PY34 = sys.version_info[:2] > (3, 3)
 
 with open(
     os.path.join(
@@ -164,9 +164,7 @@ def get_simple_vars_from_src(src):
         ast.List, ast.Set, ast.Dict, ast.Tuple
     )
     if PY3:
-        ast_data += (ast.Bytes,)
-    if PY34:
-        ast_data += (ast.NameConstant,)
+        ast_data += (ast.Bytes, ast.NameConstant,)
 
     tree = ast.parse(src)
 
