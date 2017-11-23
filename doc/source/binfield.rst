@@ -100,17 +100,35 @@ API: `BinField` class.
 
         :rtype: BinField
 
+    .. py:method:: __rand__(other)
+
+        int mimic
+
+        Allows to call other & self
+
     .. py:method:: __or__(other)
 
         int mimic.
 
         :rtype: BinField
 
+    .. py:method:: __ror__(other)
+
+        int mimic
+
+        Allows to call other | self
+
     .. py:method:: __xor__(other)
 
         int mimic.
 
         :rtype: BinField
+
+    .. py:method:: __rxor__(other)
+
+        int mimic
+
+        Allows to call other ^ self
 
     .. py:method:: __iadd__(other)
 
@@ -126,11 +144,23 @@ API: `BinField` class.
 
         :rtype: typing.Union[int, BinField]
 
+    .. py:method:: __radd__(other)
+
+        int mimic
+
+        Allows to call other + self
+
     .. py:method:: __sub__(other)
 
         int mimic.
 
         :rtype: typing.Union[int, BinField]
+
+    .. py:method:: __rsub__(other)
+
+        int mimic
+
+        Allows to call other - self
 
     .. py:method:: __mul__(other)
 
@@ -138,17 +168,35 @@ API: `BinField` class.
 
         :rtype: int
 
+    .. py:method:: __rmul__(other)
+
+        int mimic
+
+        Allows to call other * self
+
     .. py:method:: __lshift__(other)
 
         int mimic.
 
         :rtype: int
 
+    .. py:method:: __rlshift__(other)
+
+        int mimic
+
+        Allows to call other << self
+
     .. py:method:: __rshift__(other)
 
         int mimic.
 
         :rtype: int
+
+    .. py:method:: __rrshift__(other)
+
+        int mimic
+
+        Allows to call other >> self
 
     .. py:method:: __bool__(other)
 

@@ -427,3 +427,17 @@ class BaseFunctionality(unittest.TestCase):
         LongBinField(
             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
         )
+
+    def test_reverse(self):
+        """Test, that reverse operations is possible."""
+        value = BinField(42)
+
+        self.assertEqual(1 & value, 0)
+        self.assertEqual(1 | value, 43)
+        self.assertEqual(1 ^ value, 43)
+        self.assertEqual(1 + value, 43)
+        self.assertEqual(1 - value, -41)
+        self.assertEqual(1 * value, 42)
+
+        self.assertEqual(1 << value, 1 << 42)
+        self.assertEqual(1 >> value, 0)

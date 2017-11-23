@@ -15,7 +15,7 @@
 
 from .binfield import BinField
 
-__version__ = '0.9.0'
+__version__ = '0.9.1'
 __author__ = "Alexey Stepanov"
 __author_email__ = 'penguinolog@gmail.com'
 __url__ = 'https://github.com/penguinolog/binfield'

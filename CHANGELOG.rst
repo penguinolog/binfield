@@ -1,5 +1,9 @@
 CHANGELOG
 =========
+Version 0.9.1
+-------------
+* allow reverse operations (eg other <operation> self)
+
 Version 0.9.0
 -------------
 * Python 3.3 support is ended. EOL is coming, test was run rarely.

@@ -679,6 +679,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         return self.__class__(self._value_ & int(other))
 
+    def __rand__(self, other):
+        """Reverse and."""
+        return other & self._value_
+
     def __or__(self, other):
         """int mimic.
 
@@ -686,12 +690,21 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         return self.__class__(self._value_ | int(other))
 
+    def __ror__(self, other):
+        """Reverse or."""
+        return other | self._value_
+
     def __xor__(self, other):
         """int mimic.
 
         :rtype: BinField
         """
         return self.__class__(self._value_ ^ int(other))
+
+    def __rxor__(self, other):
+        """Reverse xor."""
+        return other ^ self._value_
+
     # pylint: enable=no-value-for-parameter
 
     # Integer modify operations
@@ -733,6 +746,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return res
         return self.__class__(res)
 
+    def __radd__(self, other):
+        """Reverse add."""
+        return other + self._value_
+
     def __sub__(self, other):
         """int mimic.
 
@@ -740,6 +757,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         return self.__add__(-other)
 
+    def __rsub__(self, other):
+        """Reverse sub."""
+        return other - self._value_
     # pylint: enable=no-value-for-parameter
 
     # Integer -> integer operations
@@ -750,6 +770,10 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         return self._value_ * other
 
+    def __rmul__(self, other):
+        """Reverse multiply."""
+        return other * self._value_
+
     def __lshift__(self, other):
         """int mimic.
 
@@ -757,12 +781,20 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         return self._value_ << other
 
+    def __rlshift__(self, other):
+        """Reverse left shift."""
+        return other << self._value_
+
     def __rshift__(self, other):
         """int mimic.
 
         :rtype: int
         """
         return self._value_ >> other
+
+    def __rrshift__(self, other):
+        """Reverse right shift."""
+        return other >> self._value_
 
     def __bool__(self):
         """int mimic.
