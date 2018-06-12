@@ -251,7 +251,7 @@ API: `BinField` class.
 
         Indexed setter
 
-        :type key: union(str, int, slice, list, tuple)
+        :type key: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
         :type value: int
         :raises TypeError: value type is not int
         :raises IndexError: key not found (or key is not string, no mapping)

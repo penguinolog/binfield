@@ -19,6 +19,7 @@ import ast
 import collections
 from distutils.command import build_ext
 import distutils.errors
+import glob
 import os.path
 import shutil
 import sys
@@ -246,6 +247,14 @@ setup_args = dict(
                    "!=34.0.0,!=34.0.1,!=34.0.2,!=34.0.3,!=34.1.0,!=34.1.1,!=34.2.0,!=34.3.0,!=34.3.1,!=34.3.2,"
                    "!=36.2.0",
     install_requires=required,
+    package_data={
+        'binfield': [
+            os.path.basename(filename)
+            for filename in glob.glob(os.path.join('binfield', '*.pyi'))
+        ] + [
+            'py.typed'
+        ],
+    },
 )
 if cythonize is not None:
     setup_args['ext_modules'] = ext_modules

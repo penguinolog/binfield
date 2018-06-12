@@ -135,7 +135,7 @@ def _get_index(
         return slice(*val)
     if isinstance(val, dict):
         return slice(*val['_index_'])
-    raise TypeError('Unexpected val: {val!r}'.format(val=val))
+    raise TypeError('Unexpected val: {val!r}'.format(val=val))  # pragma: no cover
 
 
 def _get_mask(start, end):  # type: (int, int) -> int
@@ -279,19 +279,19 @@ def _py2_str(src):  # type: (typing.AnyStr) -> str
     return src  # pragma: no cover
 
 
-class BaseBinFieldMeta(object):
+class BaseBinFieldMeta(object):  # pragma: no cover
     """Fake class for BinFieldMeta compilation and class instance creation."""
 
     pass
 
 
-class BinField(object):
+class BinField(object):  # pragma: no cover
     """Fake class for BinFieldMeta compilation."""
 
     pass
 
 
-class BaseMeta(type):
+class BaseMeta(type):  # pragma: no cover
     """Metaclass for BaseClass creation."""
 
     @property
@@ -346,8 +346,8 @@ class BinFieldMeta(BaseMeta, type):
             any((issubclass(base, BaseBinFieldMeta) for base in bases))
         ):
             # Top level baseclass: cleanup
-            for key in ('_value_', '_size_', '_mask_', '_mapping_'):
-                classdict.pop(key, None)  # pragma: no cover
+            for key in ('_value_', '_size_', '_mask_', '_mapping_'):  # pragma: no cover
+                classdict.pop(key, None)
             return super(
                 BinFieldMeta,
                 mcs
@@ -471,6 +471,16 @@ class BinFieldMeta(BaseMeta, type):
         # pylint: enable=bad-mcs-classmethod-argument
 
         return type.__new__(SubMeta, name, bases, classdict)
+
+    @classmethod
+    def __prepare__(
+        mcs,
+        name,  # type: str
+        bases,  # type: typing.Tuple[typing.Type]
+        **kwargs
+    ):  # type: (...) -> typing.Dict  # pylint: disable=unused-argument
+        """Metaclass magic for object storage."""
+        return {}  # pragma: no cover
 
     @classmethod
     def makecls(
@@ -821,7 +831,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :rtype: bool
         """
-        return bool(self._value_)
+        return bool(self._value_)  # pragma: no cover
 
     # Data manipulation: hash, pickle
     def __hash__(self):
@@ -965,7 +975,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     def __getitem__(
         self,
-        item  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
+        item  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
     ):  # type: (...) -> BinField
         """Extract bits.
 
@@ -1052,10 +1062,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         self._value_ = self._value_ & ~get_mask | value
 
-    def __setitem__(self, key, value):
+    def __setitem__(
+        self,
+        key,  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
+        value  # type: int
+    ):  # type: (...) -> None
         """Indexed setter.
 
-        :type key: union(str, int, slice, list, tuple)
+        :type key: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
         :type value: int
         :raises TypeError: value type is not int
         :raises IndexError: key not found (or key is not string, no mapping)
@@ -1102,7 +1116,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         parser,
         indent,  # type: int
         no_indent_start  # type: bool
-    ):
+    ):  # type: (...) -> typing.AnyStr
         """real __str__ code."""
         indent = 0 if no_indent_start else indent
         indent_step = 2 if parser is None else parser.indent_step
@@ -1129,7 +1143,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         _,
         indent,  # type: int
         no_indent_start  # type: bool
-    ):
+    ):  # type: (...) -> typing.AnyStr
         """real __repr__ code."""
         indent = 0 if no_indent_start else indent
         if self.__parent_link:
@@ -1173,7 +1187,7 @@ class _Formatter(object):
         indent_step=4,  # type: int
         py2_str=False,  # type: bool
 
-    ):
+    ):  # type: (...) -> None
         """BinField dedicated str formatter.
 
         :param max_indent: maximal indent before classic repr() call
@@ -1245,7 +1259,7 @@ class _Formatter(object):
         src,  # type: BinField
         indent=0,  # type: int
         no_indent_start=False  # type: bool
-    ):
+    ):  # type: (...) -> str
         """Make human readable representation of object.
 
         :param src: object to process
@@ -1307,7 +1321,7 @@ class _Formatter(object):
         src,  # type: BinField
         indent=0,  # type: int
         no_indent_start=False  # type: bool
-    ):
+    ):  # type: (...) -> typing.AnyStr
         """Make human readable representation of object.
 
         :param src: object to process

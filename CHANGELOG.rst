@@ -1,5 +1,12 @@
 CHANGELOG
 =========
+Version 0.9.2
+-------------
+* Typehints
+* Typing stub
+* Codestyle: 120 symbols/line
+* Metadata filled
+
 Version 0.9.1
 -------------
 * allow reverse operations (eg other <operation> self)
