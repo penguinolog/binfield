@@ -15,7 +15,7 @@ API: `BinField` class.
     :param base: base for start value
     :type base: int
     :param _parent: Parent link. For internal usage only.
-    :type _parent: typing.Optional[typing.Tuple[BinField, slice]]
+    :type _parent: typing.Optional[typing.Tuple[BinField, int]]
 
     .. note:: Subclasses have getters for mapping indexes.
 
@@ -134,6 +134,9 @@ API: `BinField` class.
 
         int mimic.
 
+        :raises OverflowError: Result not fills in data length
+        :raises ValueError: negative result
+
     .. py:method:: __isub__(other)
 
         int mimic.
@@ -143,6 +146,7 @@ API: `BinField` class.
         int mimic.
 
         :rtype: typing.Union[int, BinField]
+        :raises ValueError: negative result
 
     .. py:method:: __radd__(other)
 
@@ -221,6 +225,7 @@ API: `BinField` class.
         Pickling.
 
         :rtype: typing.Dict[str: int]
+        :raises ValueError: Pickle of linked instance
 
     .. py:method:: __getnewargs__()
 
@@ -238,9 +243,9 @@ API: `BinField` class.
 
         Extract bits.
 
-        :type item: union(str, int, slice, tuple, list)
+        :type item: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
         :rtype: BinField
-        :raises: IndexError
+        :raises IndexError: Mapping is not available
 
     .. py:method:: __setitem__(key, value)
 
@@ -248,3 +253,5 @@ API: `BinField` class.
 
         :type key: union(str, int, slice, list, tuple)
         :type value: int
+        :raises TypeError: value type is not int
+        :raises IndexError: key not found (or key is not string, no mapping)
