@@ -29,35 +29,28 @@ import typing  # noqa  # pylint: disable=unused-import
 
 import six
 
-__all__ = ('BinField', )
+__all__ = ('BinField',)
 
 
-string_types = (str, ) if six.PY3 else (six.text_type, six.binary_type)  # type: typing.Tuple[typing.Type]
+if six.PY3:
+    string_types = (str,)  # type: typing.Tuple[typing.Type, ...]
+else:
+    string_types = (six.text_type, six.binary_type)
 
 
 def _is_descriptor(obj):  # type: (typing.Any) -> bool
     """Return True if obj is a descriptor, False otherwise."""
-    return (
-        hasattr(obj, '__get__') or
-        hasattr(obj, '__set__') or
-        hasattr(obj, '__delete__')
-    )
+    return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
 
 
 def _is_dunder(name):  # type: (str) -> bool
     """Return True if a __dunder__ name, False otherwise."""
-    return (name[:2] == name[-2:] == '__' and
-            name[2:3] != '_' and
-            name[-3:-2] != '_' and
-            len(name) > 4)
+    return name[:2] == name[-2:] == '__' and name[2:3] != '_' and name[-3:-2] != '_' and len(name) > 4
 
 
 def _is_sunder(name):  # type: (str) -> bool
     """Return True if a _sunder_ name, False otherwise."""
-    return (name[0] == name[-1] == '_' and
-            name[1:2] != '_' and
-            name[-2:-1] != '_' and
-            len(name) > 2)
+    return name[0] == name[-1] == '_' and name[1:2] != '_' and name[-2:-1] != '_' and len(name) > 2
 
 
 def _is_valid_slice(obj):  # type: (typing.Union[slice, typing.Any]) -> bool
@@ -66,25 +59,26 @@ def _is_valid_slice(obj):  # type: (typing.Union[slice, typing.Any]) -> bool
     :type obj: slice
     :rtype: bool
     """
-    valid_precondition = isinstance(obj, slice) and obj.step is None
-    if not valid_precondition:
+    if not isinstance(obj, slice) or obj.step is not None:
         return False
     if obj.start is not None and obj.stop is not None:
-        return valid_precondition and 0 <= obj.start < obj.stop
-    return valid_precondition
+        return 0 <= obj.start < obj.stop
+    return True
 
 
 def _is_valid_slice_mapping(
-    obj  # type: typing.Union[typing.List[int, int], typing.Tuple[int, int], typing.Any]
+    obj  # type: typing.Union[typing.List[int], typing.Tuple[int, int], typing.Any]
 ):  # type: (...) -> bool
     """Object is valid slice mapping.
 
     :rtype: bool
     """
     return (
-        isinstance(obj, (tuple, list)) and len(obj) == 2 and
-        isinstance(obj[0], int) and isinstance(obj[1], int) and
-        0 <= obj[0] < obj[1]
+        isinstance(obj, (tuple, list))
+        and len(obj) == 2
+        and isinstance(obj[0], int)
+        and isinstance(obj[1], int)
+        and 0 <= obj[0] < obj[1]
     )
 
 
@@ -108,13 +102,7 @@ def _mapping_filter(item):  # type: (typing.Tuple[typing.Any, typing.Any]) -> bo
         return False
 
     # Index / slice / slice from iterable
-    if isinstance(
-        obj, int
-    ) or _is_valid_slice(
-        obj
-    ) or _is_valid_slice_mapping(
-        obj
-    ):
+    if isinstance(obj, int) or _is_valid_slice(obj) or _is_valid_slice_mapping(obj):
         return True
 
     # Not nested
@@ -130,9 +118,9 @@ def _get_index(
 ):  # type: (...) -> typing.Union[int, slice]
     """Extract real index from index."""
     if isinstance(val, int) or _is_valid_slice(val):
-        return val
+        return val  # type: ignore
     if _is_valid_slice_mapping(val):
-        return slice(*val)
+        return slice(*val)  # type: ignore
     if isinstance(val, dict):
         return slice(*val['_index_'])
     raise TypeError('Unexpected val: {val!r}'.format(val=val))  # pragma: no cover
@@ -159,7 +147,7 @@ def _get_start_index(
     """
     if isinstance(src[1], int):
         return src[1]
-    return _get_index(src[1]).start
+    return _get_index(src[1]).start  # type: ignore
 
 
 def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
@@ -171,7 +159,7 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
     :raises IndexError: Mapping after non-ending slice index or mapping intersection
     """
     mapping_mask = 0
-    new_mapping = collections.OrderedDict()
+    new_mapping = collections.OrderedDict()  # type: collections.OrderedDict
     cycle_end = False
 
     # pylint: disable=undefined-loop-variable
@@ -185,10 +173,8 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
         if mapping_mask & mask != 0:
             raise IndexError(
                 'Mapping key {key} has intersection with other keys '
-                'by mask {mask:b}'.format(
-                    key=m_key,
-                    mask=mapping_mask & mask
-                ))
+                'by mask {mask:b}'.format(key=m_key, mask=mapping_mask & mask)
+            )
         return mapping_mask | mask
 
     # pylint: enable=undefined-loop-variable
@@ -196,23 +182,14 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
     if '_index_' in mapping:
         new_mapping['_index_'] = mapping.pop('_index_')
 
-    unexpected = [
-        item for item in mapping.items() if not _mapping_filter(item)
-    ]
+    unexpected = [item for item in mapping.items() if not _mapping_filter(item)]
 
     if unexpected:
-        raise ValueError(
-            'Mapping contains unexpected data: '
-            '{!r}'.format(unexpected))
+        raise ValueError('Mapping contains unexpected data: {!r}'.format(unexpected))
 
-    for m_key, m_val in sorted(
-        mapping.items(),
-        key=_get_start_index
-    ):
+    for m_key, m_val in sorted(mapping.items(), key=_get_start_index):
         if cycle_end:
-            raise IndexError(
-                'Mapping after non-ending slice index! '
-                'First key: {}'.format(m_key))
+            raise IndexError('Mapping after non-ending slice index! First key: {}'.format(m_key))
 
         if isinstance(m_val, (list, tuple)):
             new_mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
@@ -225,20 +202,13 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
             new_mapping[m_key] = _prepare_mapping(m_val)
         else:
             if m_val.stop:
-                mapping_mask = check_update_mapping_mask(
-                    _get_mask(
-                        m_val.start if m_val.start else 0,
-                        m_val.stop
-                    )
-                )
+                mapping_mask = check_update_mapping_mask(_get_mask(m_val.start if m_val.start else 0, m_val.stop))
             else:
                 if mapping_mask & (1 << m_val.start) != 0:
                     raise IndexError(
                         'Mapping key {key} has intersection '
-                        'with other keys by mask {mask:b}'.format(
-                            key=m_key,
-                            mask=mapping_mask & (1 << m_val.start)
-                        ))
+                        'with other keys by mask {mask:b}'.format(key=m_key, mask=mapping_mask & (1 << m_val.start))
+                    )
                 cycle_end = True
             new_mapping[m_key] = m_val
 
@@ -250,11 +220,16 @@ def _make_mapping_property(key):  # type: (str) -> property
 
     :rtype: property
     """
-    return property(
-        fget=lambda self: self.__getitem__(key),
-        fset=lambda self, val: self.__setitem__(key, val),
-        doc="""mapping key: {}""".format(key)
-    )
+
+    def fget(self):  # type: (typing.Any) -> typing.Any
+        """Mapping key: {}.""".format(key)
+        return self[key]
+
+    def fset(self, val):  # type: (typing.Any, typing.Any) -> None
+        """Setter for {}.""".format(key)
+        self[key] = val
+
+    return property(fget=fget, fset=fset, doc="mapping key: {}".format(key))
 
 
 def _make_static_ro_property(name, val):  # type: (str, typing.Any) -> property
@@ -263,20 +238,19 @@ def _make_static_ro_property(name, val):  # type: (str, typing.Any) -> property
     :type name: str
     :type val: object
     """
-    return property(
-        fget=lambda _=None: val,
-        doc="""Read-only {}""".format(name)
-    )
+
+    def fget(_):  # type: (typing.Any) -> typing.Any
+        """Read-only {}.""".format(name)
+        return val
+
+    return property(fget=fget, doc="Read-only {}".format(name))
 
 
-def _py2_str(src):  # type: (typing.AnyStr) -> str
+def _py2_str(src):  # type: (typing.Union[six.text_type, six.binary_type]) -> str
     """Convert text to correct python type."""
     if not six.PY3 and isinstance(src, six.text_type):  # pragma: no cover
-        return src.encode(
-            encoding='utf-8',
-            errors='strict',
-        )
-    return src  # pragma: no cover
+        return src.encode(encoding='utf-8', errors='strict')
+    return src  # type: ignore  # pragma: no cover
 
 
 class BaseBinFieldMeta(object):  # pragma: no cover
@@ -295,42 +269,42 @@ class BaseMeta(type):  # pragma: no cover
     """Metaclass for BaseClass creation."""
 
     @property
-    def _value_(cls):
+    def _value_(cls):  # type: (BaseMeta) -> typing.Any
         """Internal value (integer)."""
         return NotImplemented
 
     @property
-    def _size_(cls):
+    def _size_(cls):  # type: (BaseMeta) -> typing.Any
         """Only for sized (Not BaseClass)."""
         return NotImplemented
 
     @property
-    def _bit_size_(cls):
+    def _bit_size_(cls):  # type: (BaseMeta) -> typing.Any
         """Only for sized (Not BaseClass)."""
         return NotImplemented
 
     @property
-    def _mask_(cls):
+    def _mask_(cls):  # type: (BaseMeta) -> typing.Any
         """Only if mask presents (Not BaseClass)."""
         return NotImplemented
 
     @property
-    def _mapping_(cls):
+    def _mapping_(cls):  # type: (BaseMeta) -> typing.Any
         """Only for indexed (Not BaseClass)."""
         return NotImplemented
 
 
-class BinFieldMeta(BaseMeta, type):
+class BinFieldMeta(BaseMeta):
     """Metaclass for BinField class and subclasses construction."""
 
     # noinspection PyInitNewSignature
     def __new__(
-        mcs,
+        mcs,  # type: typing.Type[BinFieldMeta]
         name,  # type: str
         bases,  # type: typing.Tuple[typing.Type]
-        classdict
-    ):  # type: (...) -> BinFieldMeta
-        """BinField metaclass.
+        classdict,  # type: typing.Dict[str, typing.Any]
+    ):  # type: (...) -> typing.Type[BinField]
+        """Metaclass for BinField.
 
         :type name: str
         :type bases: tuple
@@ -341,17 +315,11 @@ class BinFieldMeta(BaseMeta, type):
         """
         name = _py2_str(name)
 
-        if not (
-            BaseBinFieldMeta in bases or
-            any((issubclass(base, BaseBinFieldMeta) for base in bases))
-        ):
+        if not (BaseBinFieldMeta in bases or any((issubclass(base, BaseBinFieldMeta) for base in bases))):
             # Top level baseclass: cleanup
             for key in ('_value_', '_size_', '_mask_', '_mapping_'):  # pragma: no cover
                 classdict.pop(key, None)
-            return super(
-                BinFieldMeta,
-                mcs
-            ).__new__(mcs, name, bases, classdict)
+            return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
         meta_dict = {}
         meta_name = _py2_str("{}Meta".format(name))
@@ -392,10 +360,7 @@ class BinFieldMeta(BaseMeta, type):
         if mapping is None:
             mapping = {}
 
-            for m_key, m_val in filter(
-                    _mapping_filter,
-                    classdict.copy().items()
-            ):
+            for m_key, m_val in filter(_mapping_filter, classdict.copy().items()):
                 if isinstance(m_val, (list, tuple)):
                     mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
                 else:
@@ -403,23 +368,20 @@ class BinFieldMeta(BaseMeta, type):
                 del classdict[m_key]
 
         garbage = {
-            name: obj for name, obj in classdict.items()
-            if not (
-                _is_dunder(name) or _is_sunder(name) or _is_descriptor(obj)
-            )
+            name: obj
+            for name, obj in classdict.items()
+            if not (_is_dunder(name) or _is_sunder(name) or _is_descriptor(obj))
         }
 
         if garbage:
-            raise TypeError(
-                'Several data is not recognized in class structure: '
-                '{!r}'.format(garbage)
-            )
+            raise TypeError('Several data is not recognized in class structure: ' '{!r}'.format(garbage))
 
         ready_mapping = _prepare_mapping(mapping)
 
         if ready_mapping:
-            meta_dict['_mapping_'] = classdict['_mapping_'] = \
-                _make_static_ro_property('mapping', copy.deepcopy(ready_mapping))
+            meta_dict['_mapping_'] = classdict['_mapping_'] = _make_static_ro_property(
+                'mapping', copy.deepcopy(ready_mapping)
+            )
 
             for m_key in ready_mapping:
                 classdict[_py2_str(m_key)] = _make_mapping_property(m_key)
@@ -431,21 +393,13 @@ class BinFieldMeta(BaseMeta, type):
         classdict['_cache_'] = {}  # Use for subclasses memorize
 
         if BinField not in bases:
-            return super(
-                BinFieldMeta,
-                mcs
-            ).__new__(
-                mcs, name, bases, classdict)
+            return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
         # noinspection PyPep8Naming
-        RealMeta = type(
-            meta_name,
-            (type,),
-            meta_dict
-        )
+        RealMeta = type(meta_name, (type,), meta_dict)
 
         # pylint: disable=bad-mcs-classmethod-argument
-        class SubMeta(RealMeta, BinFieldMeta, type):
+        class SubMeta(RealMeta, BinFieldMeta):  # type: ignore
             """Mixin metaclass for creating BinField subclasses.
 
             Properties is made in RealMeta and here we are creating new class
@@ -455,10 +409,10 @@ class BinFieldMeta(BaseMeta, type):
 
             # noinspection PyMethodParameters,PyInitNewSignature
             def __new__(
-                smcs,
+                smcs,  # type: typing.Type[SubMeta]
                 sname,  # type: str
                 sbases,  # type: typing.Tuple[typing.Type]
-                sns
+                sns,  # type: typing.Dict[str, typing.Any]
             ):  # type: (...) -> SubMeta
                 for base in sbases:
                     if base is not BinField and issubclass(base, BinField):
@@ -466,7 +420,7 @@ class BinFieldMeta(BaseMeta, type):
 
                 sns['__slots__'] = ()  # No any new fields on instances
 
-                return type.__new__(SubMeta, sname, sbases, sns)
+                return super(SubMeta, smcs).__new__(smcs, sname, sbases, sns)  # type: ignore
 
         # pylint: enable=bad-mcs-classmethod-argument
 
@@ -474,22 +428,22 @@ class BinFieldMeta(BaseMeta, type):
 
     @classmethod
     def __prepare__(
-        mcs,
+        mcs,  # type: typing.Type[BinFieldMeta]
         name,  # type: str
         bases,  # type: typing.Tuple[typing.Type]
-        **kwargs
+        **kwargs  # type: typing.Any
     ):  # type: (...) -> typing.Dict  # pylint: disable=unused-argument
         """Metaclass magic for object storage."""
         return {}  # pragma: no cover
 
     @classmethod
     def makecls(
-        mcs,
+        mcs,  # type: typing.Type[BinFieldMeta]
         name,  # type: str
         mapping=None,  # type: typing.Optional[typing.Dict]
         mask=None,  # type: typing.Optional[int]
-        size=None  # type: typing.Optional[int]
-    ):  # type: (...) -> BinFieldMeta
+        size=None,  # type: typing.Optional[int]
+    ):  # type: (...) -> typing.Type[BinField]
         """Create new BinField subclass.
 
         :param name: Class name
@@ -502,33 +456,27 @@ class BinFieldMeta(BaseMeta, type):
         :type size: int
         :returns: BinField subclass
         """
-        classdict = {
-            '_size_': size,
-            '_mask_': mask,
-            '__slots__': ()
-        }
+        classdict = {'_size_': size, '_mask_': mask, '__slots__': ()}  # type: typing.Dict[str, typing.Any]
         if mapping is not None:
             classdict['_mapping_'] = mapping
         # noinspection PyTypeChecker
-        return mcs.__new__(mcs, name, (BinField, ), classdict)
+        return mcs.__new__(mcs, name, (BinField,), classdict)
 
 
 # noinspection PyRedeclaration
-BaseBinFieldMeta = type.__new__(  # noqa
-    BinFieldMeta,
-    _py2_str('BaseBinFieldMeta'),
-    (object, ),
-    {'__slots__': ()}
+BaseBinFieldMeta = type.__new__(  # type: ignore  # noqa: F811
+    BinFieldMeta, _py2_str('BaseBinFieldMeta'), (object,), {'__slots__': ()}
 )
 
 
 # noinspection PyRedeclaration,PyMissingConstructor
-class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
+class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unused 'BinField'
     """BinField representation."""
 
     __slots__ = ['__value', '__parent_link']
 
-    _cache_ = {}  # Will be replaced by the same by metaclass, but helps lint
+    # Will be replaced by the same by metaclass, but helps lint
+    _cache_ = {}  # type: typing.Dict[typing.Tuple[int, str], BinField]
 
     _size_ = None  # type: typing.Optional[int]
     _mask_ = None  # type: typing.Optional[int]
@@ -539,7 +487,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         self,
         x=0,  # type: typing.Union[int, str]
         base=10,  # type: int
-        _parent=None  # type: typing.Optional[typing.Tuple[BinField, int]]
+        _parent=None,  # type: typing.Optional[typing.Tuple[BinField, int]]
     ):  # type: (...) -> None
         """Create new BinField object from integer value.
 
@@ -550,10 +498,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :param _parent: Parent link. For internal usage only.
         :type _parent: typing.Optional[typing.Tuple[BinField, int]]
         """
-        self.__value = (
-            x if isinstance(x, six.integer_types)
-            else int(x, base=base)
-        )
+        self.__value = x if isinstance(x, six.integer_types) else int(x, base=base)
         if self._mask_:
             self.__value &= self._mask_
         self.__parent_link = _parent
@@ -571,7 +516,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     def __len__(self):  # type: () -> int
         """Data length in bytes."""
-        length = int(math.ceil(self._bit_size_ / 8.))
+        length = int(math.ceil(self._bit_size_ / 8.0))
         return length if length != 0 else 1
 
     @property
@@ -582,7 +527,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         if self.__parent_link is not None:  # Update value from parent
             obj, offset = self.__parent_link
-            self.__value = (obj & (self._mask_ << offset)) >> offset
+            self.__value = (obj & (self._mask_ << offset)) >> offset  # type: ignore
         return self.__value
 
     # noinspection PyProtectedMember
@@ -598,7 +543,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if self.__parent_link is not None:
             obj, offset = self.__parent_link
 
-            obj[:] = int(obj) & ~(self._mask_ << offset) | (new_value << offset)
+            obj[:] = int(obj) & ~(self._mask_ << offset) | (new_value << offset)  # type: ignore
 
         self.__value = new_value
 
@@ -619,7 +564,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # math operators
     def __abs__(self):  # type: () -> int
-        """int mimic.
+        """Mimic int.
 
         :rtype: int
         """
@@ -664,12 +609,9 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return self._value_ == other
         if isinstance(other, BinField):
             # noinspection PyUnresolvedReferences,PyProtectedMember
-            return (
-                self._value_ == other._value_ and
-                self._mapping_ == other._mapping_ and
-                len(self) == len(other)
-            )
+            return self._value_ == other._value_ and self._mapping_ == other._mapping_ and len(self) == len(other)
         return False
+
     # pylint: enable=protected-access
 
     def __ne__(self, other):  # type: (typing.Any) -> bool
@@ -681,50 +623,50 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # Modify Bitwise operations
     def __iand__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic."""
+        """Mimic int."""
         self._value_ &= int(other)
         return self
 
     def __ior__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic."""
+        """Mimic int."""
         self._value_ |= int(other)
         return self
 
     def __ixor__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic."""
+        """Mimic int."""
         self._value_ ^= int(other)
         return self
 
     # Non modify operations: new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __and__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic.
+        """Mimic int.
 
         :rtype: BinField
         """
-        return self.__class__(self._value_ & int(other))
+        return self.__class__(self._value_ & int(other))  # type: ignore
 
     def __rand__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse and."""
         return other & self._value_
 
     def __or__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic.
+        """Mimic int.
 
         :rtype: BinField
         """
-        return self.__class__(self._value_ | int(other))
+        return self.__class__(self._value_ | int(other))  # type: ignore
 
     def __ror__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse or."""
         return other | self._value_
 
     def __xor__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic.
+        """Mimic int.
 
         :rtype: BinField
         """
-        return self.__class__(self._value_ ^ int(other))
+        return self.__class__(self._value_ ^ int(other))  # type: ignore
 
     def __rxor__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse xor."""
@@ -734,32 +676,28 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
     # Integer modify operations
     def __iadd__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic.
+        """Mimic int.
 
         :raises OverflowError: Result not fills in data length
         :raises ValueError: negative result
         """
         res = self._value_ + int(other)
         if self._size_ and self._size_ < res.bit_length():
-            raise OverflowError(
-                'Result value {} not fill in '
-                'data length ({} bits)'.format(res, self._size_))
+            raise OverflowError('Result value {} not fill in ' 'data length ({} bits)'.format(res, self._size_))
         if res < 0:
-            raise ValueError(
-                'BinField could not be negative!'
-            )
+            raise ValueError('BinField could not be negative!')
         self._value_ = res
         return self
 
     def __isub__(self, other):  # type: (typing.Any) -> BinField
-        """int mimic."""
+        """Mimic int."""
         return self.__iadd__(-other)
 
     # Integer non-modify operations. New object is BinField, if not overflow
     # new BinField will re-use _mapping_
     # pylint: disable=no-value-for-parameter
     def __add__(self, other):  # type: (typing.Any) -> typing.Union[int, BinField]
-        """int mimic.
+        """Mimic int.
 
         :rtype: typing.Union[int, BinField]
         :raises ValueError: negative result
@@ -767,21 +705,18 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         res = self._value_ + int(other)
         if res < 0:
             raise ValueError(
-                'BinField could not be negative! '
-                'Value {} is bigger, than {}'.format(
-                    other, self._value_
-                )
+                'BinField could not be negative! ' 'Value {} is bigger, than {}'.format(other, self._value_)
             )
         if self._size_ and self._size_ < res.bit_length():
             return res
-        return self.__class__(res)
+        return self.__class__(res)  # type: ignore
 
     def __radd__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse add."""
         return other + self._value_
 
     def __sub__(self, other):  # type: (typing.Any) -> typing.Union[int, BinField]
-        """int mimic.
+        """Mimic int.
 
         :rtype: typing.Union[int, BinField]
         """
@@ -790,58 +725,61 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
     def __rsub__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse sub."""
         return other - self._value_
+
     # pylint: enable=no-value-for-parameter
 
     # Integer -> integer operations
     def __mul__(self, other):  # type: (typing.Any) -> int
-        """int mimic.
+        """Mimic int.
 
         :rtype: int
         """
-        return self._value_ * other
+        return self._value_ * other  # type: ignore
 
     def __rmul__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse multiply."""
         return other * self._value_
 
     def __lshift__(self, other):  # type: (typing.Any) -> int
-        """int mimic.
+        """Mimic int.
 
         :rtype: int
         """
-        return self._value_ << other
+        return self._value_ << other  # type: ignore
 
     def __rlshift__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse left shift."""
         return other << self._value_
 
     def __rshift__(self, other):  # type: (typing.Any) -> int
-        """int mimic.
+        """Mimic int.
 
         :rtype: int
         """
-        return self._value_ >> other
+        return self._value_ >> other  # type: ignore
 
     def __rrshift__(self, other):  # type: (typing.Any) -> typing.Any
         """Reverse right shift."""
         return other >> self._value_
 
     def __bool__(self):  # type: () -> bool
-        """int mimic.
+        """Mimic int.
 
         :rtype: bool
         """
         return bool(self._value_)  # pragma: no cover
 
     # Data manipulation: hash, pickle
-    def __hash__(self):
+    def __hash__(self):  # type: () -> int
         """Usage for indexes."""
-        return hash((
-            self.__class__,
-            self._value_,
-            # link is not included, but linked objects will have different
-            # base classes due to on the fly generation
-        ))
+        return hash(
+            (
+                self.__class__,
+                self._value_,
+                # link is not included, but linked objects will have different
+                # base classes due to on the fly generation
+            )
+        )
 
     # pylint: disable=no-value-for-parameter
     def __copy__(self):  # type: () -> BinField
@@ -851,7 +789,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         .. note:: Uplink is destroyed on copy.
         """
-        return self.__class__(self._value_)
+        return self.__class__(self._value_)  # type: ignore
 
     # pylint: enable=no-value-for-parameter
 
@@ -863,13 +801,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         """
         if self.__parent_link:
             raise ValueError('Linked BinFields does not supports pickle')
-        return {
-            'x': self.__value,
-        }
+        return {'x': self.__value}
 
     # PYPY requires this
     def __getnewargs__(self):  # type: () -> typing.Tuple
-        """required for pickle.
+        """Required for pickle.
 
         :rtype: typing.Tuple
         """
@@ -880,49 +816,40 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         :type state: typing.Dict[str: int]
         """
-        self.__init__(**state)  # getstate returns enough data for __init__
+        self.__init__(**state)  # type: ignore  # getstate returns enough data for __init__
 
+    @classmethod
     def _get_child_cls_(
-        self,
+        cls,
         mask,  # type: int
         name,  # type: str
         cls_mask,  # type: int
         size,  # type: int
-        mapping=None  # type: typing.Optional[typing.Dict[str, typing.Union[slice, int, typing.Dict]]]
-    ):  # type: (...) -> BinField
+        mapping=None,  # type: typing.Optional[typing.Dict[str, typing.Union[slice, int, typing.Dict]]]
+    ):  # type: (...) -> typing.Type[BinField]
         """Get child class with memorize support.
 
         :type mask: int
         :type name: str
         :type cls_mask: int
         :type size: int
-        :type mapping: typing.Optional[
-                           typing.Dict[
-                               str,
-                               typing.Union[slice, int, typing.Dict]
-                           ]
-                       ]
+        :type mapping: typing.Optional[typing.Dict[str, typing.Union[slice, int, typing.Dict]]]
         """
         # Memorize
         # pylint: disable=protected-access
-        if (mask, name) not in self.__class__._cache_:
-            cls = BinFieldMeta.makecls(
-                name=name,
-                mapping=mapping,
-                mask=cls_mask,
-                size=size
-            )
-            self.__class__._cache_[(mask, name)] = cls
-        cls = self.__class__._cache_[(mask, name)]
+        if (mask, name) not in cls._cache_:
+            new_cls = BinFieldMeta.makecls(name=name, mapping=mapping, mask=cls_mask, size=size)
+            cls._cache_[(mask, name)] = new_cls  # type: ignore
+        new_cls = cls._cache_[(mask, name)]  # type: ignore
         # pylint: enable=protected-access
-        return cls
+        return new_cls
 
     # Access as dict
     def _getslice_(
         self,
         item,  # type: slice
         mapping=None,  # type: typing.Optional[typing.Dict]
-        name=None  # type: typing.Optional[str]
+        name=None,  # type: typing.Optional[str]
     ):  # type: (...) -> BinField
         """Get slice from self.
 
@@ -937,22 +864,14 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
 
         if item.start:
             if self._size_ and item.start > self._size_:
-                raise IndexError(
-                    'Index {} is out of data length {}'
-                    ''.format(item, self._size_))
+                raise IndexError('Index {} is out of data length {}' ''.format(item, self._size_))
 
         if name is None:
             name = '{cls}_slice_{start!s}_{stop!s}'.format(
-                cls=self.__class__.__name__,
-                start=item.start if item.start else 0,
-                stop=item.stop
+                cls=self.__class__.__name__, start=item.start if item.start else 0, stop=item.stop
             )
 
-        stop = (
-            item.stop
-            if item.stop and (not self._size_ or item.stop < self._size_)
-            else self._bit_size_
-        )
+        stop = item.stop if item.stop and (not self._size_ or item.stop < self._size_) else self._bit_size_
 
         start = item.start if item.start else 0
 
@@ -964,18 +883,11 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         cls_mask = mask >> start
 
         # Memorize
-        cls = self._get_child_cls_(
-            mask=mask,
-            name=name,
-            cls_mask=cls_mask,
-            size=stop - start,
-            mapping=mapping,
-        )
+        cls = self._get_child_cls_(mask=mask, name=name, cls_mask=cls_mask, size=stop - start, mapping=mapping)
         return cls((self._value_ & mask) >> start, _parent=(self, start))
 
     def __getitem__(
-        self,
-        item  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
+        self, item  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
     ):  # type: (...) -> BinField
         """Extract bits.
 
@@ -984,31 +896,27 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :raises IndexError: Mapping is not available
         """
         if isinstance(item, int):
-            name = '{cls}_index_{index}'.format(
-                cls=self.__class__.__name__,
-                index=item
-            )
+            name = '{cls}_index_{index}'.format(cls=self.__class__.__name__, index=item)
             return self._getslice_(slice(item, item + 1), name=name)
 
         if _is_valid_slice(item):
-            return self._getslice_(item)
+            return self._getslice_(item)  # type: ignore
 
         if _is_valid_slice_mapping(item):
-            return self._getslice_(slice(*item))
+            return self._getslice_(slice(*item))  # type: ignore
 
-        if not isinstance(item, string_types) or item.startswith('_'):
+        if not isinstance(item, string_types) or item.startswith('_'):  # type: ignore
             raise IndexError(item)
 
         if self._mapping_ is None:
             raise IndexError("Mapping is not available")
 
-        # pylint: disable=no-member
-        idx = self._mapping_.get(item)
-        # pylint: enable=no-member
+        idx = self._mapping_.get(item)  # pylint: disable=no-member
+
         if isinstance(idx, int):
-            return self._getslice_(slice(idx, idx + 1), name=item)
+            return self._getslice_(slice(idx, idx + 1), name=item)  # type: ignore
         if isinstance(idx, slice):
-            return self._getslice_(idx, name=item)
+            return self._getslice_(idx, name=item)  # type: ignore
 
         if isinstance(idx, dict):  # Nested _mapping_
             # Extract slice
@@ -1017,7 +925,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             mapping = copy.deepcopy(idx)
             del mapping['_index_']
             # Get new val
-            return self._getslice_(slc, mapping=mapping, name=item)
+            return self._getslice_(slc, mapping=mapping, name=item)  # type: ignore
 
         raise IndexError(item)
 
@@ -1040,10 +948,7 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             return
 
         if self._size_ and key.stop and key.stop > self._size_:
-            raise OverflowError(
-                'Stop index is out of data length: '
-                '{} > {}'.format(key.stop, self._size_)
-            )
+            raise OverflowError('Stop index is out of data length: ' '{} > {}'.format(key.stop, self._size_))
 
         stop = key.stop if key.stop else self._bit_size_
         start = key.start if key.start else 0
@@ -1063,10 +968,8 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         self._value_ = self._value_ & ~get_mask | value
 
     def __setitem__(
-        self,
-        key,  # type: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
-        value  # type: int
-    ):  # type: (...) -> None
+        self, key, value
+    ):  # type: (typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]], int) -> None
         """Indexed setter.
 
         :type key: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
@@ -1075,18 +978,16 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         :raises IndexError: key not found (or key is not string, no mapping)
         """
         if not isinstance(value, int):
-            raise TypeError(
-                'BinField value could be set only as int'
-            )
+            raise TypeError('BinField value could be set only as int')
 
         if isinstance(key, int):
             return self._setslice_(slice(key, key + 1), value)
 
         if _is_valid_slice(key):
-            return self._setslice_(key, value)
+            return self._setslice_(key, value)  # type: ignore
 
         if _is_valid_slice_mapping(key):
-            return self._setslice_(slice(*key), value)
+            return self._setslice_(slice(*key), value)  # type: ignore
 
         if not isinstance(key, string_types):
             raise IndexError(key)
@@ -1100,71 +1001,42 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
         if isinstance(idx, (int, slice)):
             return self.__setitem__(idx, value)
 
-        if isinstance(
-            idx, dict
-        ) and _is_valid_slice_mapping(
-            idx['_index_']
-        ):  # Nested _mapping_
+        if isinstance(idx, dict) and _is_valid_slice_mapping(idx['_index_']):  # Nested _mapping_
             # Extract slice from nested
             return self._setslice_(slice(*idx['_index_']), value)
 
         raise IndexError(key)
 
     # Representations
-    def __pretty_str__(
-        self,
-        parser,
-        indent,  # type: int
-        no_indent_start  # type: bool
-    ):  # type: (...) -> typing.AnyStr
-        """real __str__ code."""
+    def __pretty_str__(self, parser, indent, no_indent_start):  # type: (typing.Any, int, bool) -> str
+        """Real __str__ code."""
         indent = 0 if no_indent_start else indent
         indent_step = 2 if parser is None else parser.indent_step
         max_indent = 20 if parser is None else parser.max_indent
         py2_str = parser is None  # do not break str on py27
 
-        formatter = _Formatter(
-            max_indent=max_indent,
-            indent_step=indent_step,
-            py2_str=py2_str
-        )
-        return formatter(
-            src=self,
-            indent=indent
-        )
+        formatter = _Formatter(max_indent=max_indent, indent_step=indent_step, py2_str=py2_str)
+        return formatter(src=self, indent=indent)
 
-    def __str__(self):
-        """__str__ for usage in print."""
+    def __str__(self):  # type: () -> str
+        """Public __str__ for usage in print."""
         # noinspection PyTypeChecker
         return self.__pretty_str__(None, 0, True)
 
-    def __pretty_repr__(
-        self,
-        _,
-        indent,  # type: int
-        no_indent_start  # type: bool
-    ):  # type: (...) -> typing.AnyStr
-        """real __repr__ code."""
+    def __pretty_repr__(self, _, indent, no_indent_start):  # type: (typing.Any, int, bool) -> str
+        """Real __repr__ code."""
         indent = 0 if no_indent_start else indent
         if self.__parent_link:
             pre = '<'
             post = ' at 0x{:X}>'.format(id(self))
         else:
             pre = post = ''
-        return (
-            '{spc:<{indent}}{pre}{cls}(x=0x{x:0{len}X}, base=16){post}'.format(
-                spc='',
-                indent=indent,
-                pre=pre,
-                cls=self.__class__.__name__,
-                x=self._value_,
-                len=len(self) * 2,
-                post=post
-            )
+        return '{spc:<{indent}}{pre}{cls}(x=0x{x:0{len}X}, base=16){post}'.format(
+            spc='', indent=indent, pre=pre, cls=self.__class__.__name__, x=self._value_, len=len(self) * 2, post=post
         )
 
-    def __repr__(self):
-        """__repr__ for logging/debugging usage."""
+    def __repr__(self):  # type: () -> str
+        """Public __repr__ for logging/debugging usage."""
         return self.__pretty_repr__(None, 0, True)
 
     def __dir__(self):  # type: () -> typing.List[str]
@@ -1175,20 +1047,12 @@ class BinField(BaseBinFieldMeta):  # noqa  # redefinition of unused 'BinField'
             # pylint: enable=no-member
         else:
             keys = []
-        return (
-            ['_bit_size_', '_mapping_', '_mask_', '_value_', '_size_'] + keys
-        )
+        return ['_bit_size_', '_mapping_', '_mask_', '_value_', '_size_'] + keys
 
 
 class _Formatter(object):
-    def __init__(
-        self,
-        max_indent=20,  # type: int
-        indent_step=4,  # type: int
-        py2_str=False,  # type: bool
-
-    ):  # type: (...) -> None
-        """BinField dedicated str formatter.
+    def __init__(self, max_indent=20, indent_step=4, py2_str=False):  # type: (int, int, bool) -> None
+        """Dedicated str formatter for BinField.
 
         :param max_indent: maximal indent before classic repr() call
         :type max_indent: int
@@ -1230,7 +1094,7 @@ class _Formatter(object):
         return self.__max_indent
 
     def _str_bf_items(self, src, indent=0):  # type: (typing.Dict, int) -> typing.Iterator[str]
-        """repr dict items.
+        """Wrapper for repr dict items.
 
         :param src: object to process
         :type src: dict
@@ -1245,21 +1109,13 @@ class _Formatter(object):
                 indent=self.next_indent(indent),
                 size=max_len,
                 key=key,
-                val=self.process_element(
-                    val,
-                    indent=self.next_indent(indent, multiplier=2),
-                    no_indent_start=True
-                )
+                val=self.process_element(val, indent=self.next_indent(indent, multiplier=2), no_indent_start=True),
             )
 
-    # pylint: disable=protected-access
     # noinspection PyUnresolvedReferences,PyProtectedMember
     def process_element(
-        self,
-        src,  # type: BinField
-        indent=0,  # type: int
-        no_indent_start=False  # type: bool
-    ):  # type: (...) -> str
+        self, src, indent=0, no_indent_start=False
+    ):  # type: (BinField, int, bool) -> str  # pylint: disable=protected-access
         """Make human readable representation of object.
 
         :param src: object to process
@@ -1277,9 +1133,7 @@ class _Formatter(object):
             mask = ' & 0b{:b}'.format(src._mask_)
 
         if src._mapping_ and indent < self.max_indent:
-            as_dict = collections.OrderedDict(
-                ((key, src[key]) for key in src._mapping_)
-            )
+            as_dict = collections.OrderedDict(((key, src[key]) for key in src._mapping_))
             result = ''.join(self._str_bf_items(src=as_dict, indent=indent))
 
             return (
@@ -1305,42 +1159,21 @@ class _Formatter(object):
         return (
             '{spc:<{indent}}'
             '<{data} == 0x{data:0{length}X} == (0b{data:0{blength}b}{mask})>'
-            ''.format(
-                spc='',
-                indent=indent,
-                data=src._value_,
-                length=len(src) * 2,
-                blength=src._bit_size_,
-                mask=mask
-            )
+            ''.format(spc='', indent=indent, data=src._value_, length=len(src) * 2, blength=src._bit_size_, mask=mask)
         )
-    # pylint: enable=protected-access
 
-    def __call__(
-        self,
-        src,  # type: BinField
-        indent=0,  # type: int
-        no_indent_start=False  # type: bool
-    ):  # type: (...) -> typing.AnyStr
+    def __call__(self, src, indent=0, no_indent_start=False):  # type: (BinField, int, bool) -> str
         """Make human readable representation of object.
 
         :param src: object to process
         :type src: BinField
         :param indent: start indentation
         :type indent: int
-        :param no_indent_start:
-            do not indent open bracket and simple parameters
+        :param no_indent_start: do not indent open bracket and simple parameters
         :type no_indent_start: bool
         :return: formatted string
         """
-        result = self.process_element(
-            src,
-            indent=indent,
-            no_indent_start=no_indent_start
-        )
+        result = self.process_element(src, indent=indent, no_indent_start=no_indent_start)
         if self.__py2_str:  # pragma: no cover
-            return result.encode(
-                encoding='utf-8',
-                errors='backslashreplace',
-            )
+            return result.encode(encoding='utf-8', errors='backslashreplace')  # type: ignore
         return result

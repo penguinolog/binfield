@@ -1,3 +1,5 @@
+"""Base API tests."""
+
 from __future__ import unicode_literals
 
 import copy
@@ -7,9 +9,12 @@ import unittest
 from binfield import BinField
 
 
+# pylint: disable=protected-access,missing-docstring,pointless-statement,unused-variable,no-member
+
 # noinspection PyStatementEffect
 class BaseFunctionality(unittest.TestCase):
     def test_not_mapped_no_len(self):
+        """Simple case: value only."""
         test_value = 42
 
         bf = BinField(test_value)
@@ -156,6 +161,7 @@ class BaseFunctionality(unittest.TestCase):
         )
 
     def test_positive_mapped_no_len(self):
+        """Mapping present, length and mask should be calculated."""
         class MappedBinField(BinField):
             test_index = 0
             test_slc = slice(1, 3)
@@ -204,6 +210,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(mbf['test_slc'], 2)
 
     def test_mask_size(self):
+        """Length presents, mask should be calculated."""
         class MaskFromSize(BinField):
             _size_ = 8
 
@@ -215,6 +222,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(SizeFromMask()._size_, 4)
 
     def test_slice_no_start(self):
+        """Use slice with end only for indexing."""
         class NoStartIndex(BinField):
             # noinspection PyTypeChecker
             start = slice(None, 2)
@@ -223,6 +231,7 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(bf.start, 3)
 
     def test_positive_mapped_nested(self):
+        """Nested structures mapping."""
         class NestedMappedBinField(BinField):
             test_index = 0
             nested_block = {
@@ -385,6 +394,7 @@ class BaseFunctionality(unittest.TestCase):
             ROValue._value_ = 1
 
     def test_class(self):
+        """Test base class and override."""
         self.assertEqual(BinField._value_, NotImplemented)
         self.assertEqual(BinField._size_, NotImplemented)
         self.assertEqual(BinField._bit_size_, NotImplemented)
@@ -419,13 +429,18 @@ class BaseFunctionality(unittest.TestCase):
         self.assertEqual(FullFilledBinField.test_nested, slice(5, 8))
 
     def test_typing(self):
-        """Test, that very long ints and py2x long is supported"""
+        """Test, that very long ints and py2x long is supported."""
         class LongBinField(BinField):
             _size_ = 256
             _mask_ = 0xDEADBEEF00BADDAD0123456789ABCDEF
 
-        LongBinField(
+        bf = LongBinField(
             0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+        )
+
+        self.assertEqual(
+            0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff & 0xDEADBEEF00BADDAD0123456789ABCDEF,
+            int(bf)
         )
 
     def test_reverse(self):

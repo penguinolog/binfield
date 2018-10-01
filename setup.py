@@ -19,7 +19,6 @@ import ast
 import collections
 from distutils.command import build_ext
 import distutils.errors
-import glob
 import os.path
 import shutil
 import sys
@@ -248,12 +247,7 @@ setup_args = dict(
                    "!=36.2.0",
     install_requires=required,
     package_data={
-        'binfield': [
-            os.path.basename(filename)
-            for filename in glob.glob(os.path.join('binfield', '*.pyi'))
-        ] + [
-            'py.typed'
-        ],
+        'binfield': ['py.typed'],
     },
 )
 if cythonize is not None:
