@@ -29,7 +29,7 @@ import typing  # noqa  # pylint: disable=unused-import
 
 import six
 
-__all__ = ('BinField',)
+__all__ = ("BinField",)
 
 
 if six.PY3:
@@ -40,17 +40,17 @@ else:
 
 def _is_descriptor(obj):  # type: (typing.Any) -> bool
     """Return True if obj is a descriptor, False otherwise."""
-    return hasattr(obj, '__get__') or hasattr(obj, '__set__') or hasattr(obj, '__delete__')
+    return hasattr(obj, "__get__") or hasattr(obj, "__set__") or hasattr(obj, "__delete__")
 
 
 def _is_dunder(name):  # type: (str) -> bool
     """Return True if a __dunder__ name, False otherwise."""
-    return name[:2] == name[-2:] == '__' and name[2:3] != '_' and name[-3:-2] != '_' and len(name) > 4
+    return name[:2] == name[-2:] == "__" and name[2:3] != "_" and name[-3:-2] != "_" and len(name) > 4
 
 
 def _is_sunder(name):  # type: (str) -> bool
     """Return True if a _sunder_ name, False otherwise."""
-    return name[0] == name[-1] == '_' and name[1:2] != '_' and name[-2:-1] != '_' and len(name) > 2
+    return name[0] == name[-1] == "_" and name[1:2] != "_" and name[-2:-1] != "_" and len(name) > 2
 
 
 def _is_valid_slice(obj):  # type: (typing.Union[slice, typing.Any]) -> bool
@@ -94,11 +94,11 @@ def _mapping_filter(item):  # type: (typing.Tuple[typing.Any, typing.Any]) -> bo
     if not isinstance(name, string_types):
         return False
 
-    if name in {'_index_'}:
+    if name in {"_index_"}:
         return True
 
     # Descriptors, special methods, protected
-    if _is_descriptor(obj) or _is_dunder(name) or name.startswith('_'):
+    if _is_descriptor(obj) or _is_dunder(name) or name.startswith("_"):
         return False
 
     # Index / slice / slice from iterable
@@ -122,8 +122,8 @@ def _get_index(
     if _is_valid_slice_mapping(val):
         return slice(*val)  # type: ignore
     if isinstance(val, dict):
-        return slice(*val['_index_'])
-    raise TypeError('Unexpected val: {val!r}'.format(val=val))  # pragma: no cover
+        return slice(*val["_index_"])
+    raise TypeError("Unexpected val: {val!r}".format(val=val))  # pragma: no cover
 
 
 def _get_mask(start, end):  # type: (int, int) -> int
@@ -172,24 +172,24 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
         """
         if mapping_mask & mask != 0:
             raise IndexError(
-                'Mapping key {key} has intersection with other keys '
-                'by mask {mask:b}'.format(key=m_key, mask=mapping_mask & mask)
+                "Mapping key {key} has intersection with other keys "
+                "by mask {mask:b}".format(key=m_key, mask=mapping_mask & mask)
             )
         return mapping_mask | mask
 
     # pylint: enable=undefined-loop-variable
 
-    if '_index_' in mapping:
-        new_mapping['_index_'] = mapping.pop('_index_')
+    if "_index_" in mapping:
+        new_mapping["_index_"] = mapping.pop("_index_")
 
     unexpected = [item for item in mapping.items() if not _mapping_filter(item)]
 
     if unexpected:
-        raise ValueError('Mapping contains unexpected data: {!r}'.format(unexpected))
+        raise ValueError("Mapping contains unexpected data: {!r}".format(unexpected))
 
     for m_key, m_val in sorted(mapping.items(), key=_get_start_index):
         if cycle_end:
-            raise IndexError('Mapping after non-ending slice index! First key: {}'.format(m_key))
+            raise IndexError("Mapping after non-ending slice index! First key: {}".format(m_key))
 
         if isinstance(m_val, (list, tuple)):
             new_mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
@@ -198,7 +198,7 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
             mapping_mask = check_update_mapping_mask(_get_mask(m_val, m_val + 1))
             new_mapping[m_key] = m_val
         elif isinstance(m_val, dict):  # nested mapping
-            mapping_mask = check_update_mapping_mask(_get_mask(*m_val['_index_']))
+            mapping_mask = check_update_mapping_mask(_get_mask(*m_val["_index_"]))
             new_mapping[m_key] = _prepare_mapping(m_val)
         else:
             if m_val.stop:
@@ -206,8 +206,8 @@ def _prepare_mapping(mapping):  # type: (typing.Dict) -> collections.OrderedDict
             else:
                 if mapping_mask & (1 << m_val.start) != 0:
                     raise IndexError(
-                        'Mapping key {key} has intersection '
-                        'with other keys by mask {mask:b}'.format(key=m_key, mask=mapping_mask & (1 << m_val.start))
+                        "Mapping key {key} has intersection "
+                        "with other keys by mask {mask:b}".format(key=m_key, mask=mapping_mask & (1 << m_val.start))
                     )
                 cycle_end = True
             new_mapping[m_key] = m_val
@@ -249,7 +249,7 @@ def _make_static_ro_property(name, val):  # type: (str, typing.Any) -> property
 def _py2_str(src):  # type: (typing.Union[six.text_type, six.binary_type]) -> str
     """Convert text to correct python type."""
     if not six.PY3 and isinstance(src, six.text_type):  # pragma: no cover
-        return src.encode(encoding='utf-8', errors='strict')
+        return src.encode(encoding="utf-8", errors="strict")
     return src  # type: ignore  # pragma: no cover
 
 
@@ -317,45 +317,45 @@ class BinFieldMeta(BaseMeta):
 
         if not (BaseBinFieldMeta in bases or any((issubclass(base, BaseBinFieldMeta) for base in bases))):
             # Top level baseclass: cleanup
-            for key in ('_value_', '_size_', '_mask_', '_mapping_'):  # pragma: no cover
+            for key in ("_value_", "_size_", "_mask_", "_mapping_"):  # pragma: no cover
                 classdict.pop(key, None)
             return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
 
         meta_dict = {}
         meta_name = _py2_str("{}Meta".format(name))
 
-        if '_index_' in classdict:
-            raise ValueError('_index_ is reserved index for slicing nested BinFields')
+        if "_index_" in classdict:
+            raise ValueError("_index_ is reserved index for slicing nested BinFields")
 
-        size = classdict.pop('_size_', None)
+        size = classdict.pop("_size_", None)
         mask_from_size = None
 
         if size is not None:
             if not isinstance(size, int):
-                raise TypeError('Pre-defined size has invalid type: {!r}'.format(size))
+                raise TypeError("Pre-defined size has invalid type: {!r}".format(size))
 
             if size <= 0:
-                raise ValueError('Size must be positive value !')
+                raise ValueError("Size must be positive value !")
 
             mask_from_size = (1 << size) - 1
 
-        mask = classdict.pop('_mask_', mask_from_size)
+        mask = classdict.pop("_mask_", mask_from_size)
 
         if mask is not None:
             if not isinstance(mask, six.integer_types):
-                raise TypeError('Pre-defined mask has invalid type: {!r}'.format(mask))
+                raise TypeError("Pre-defined mask has invalid type: {!r}".format(mask))
             if mask < 0:
-                raise ValueError('BitMask is strictly positive!')
+                raise ValueError("BitMask is strictly positive!")
 
             if size is None:
                 # noinspection PyUnresolvedReferences
                 size = mask.bit_length()
 
-        meta_dict['_size_'] = classdict['_size_'] = _make_static_ro_property('size', size)
+        meta_dict["_size_"] = classdict["_size_"] = _make_static_ro_property("size", size)
 
-        meta_dict['_mask_'] = classdict['_mask_'] = _make_static_ro_property('mask', mask)
+        meta_dict["_mask_"] = classdict["_mask_"] = _make_static_ro_property("mask", mask)
 
-        mapping = classdict.pop('_mapping_', None)
+        mapping = classdict.pop("_mapping_", None)
 
         if mapping is None:
             mapping = {}
@@ -374,13 +374,13 @@ class BinFieldMeta(BaseMeta):
         }
 
         if garbage:
-            raise TypeError('Several data is not recognized in class structure: ' '{!r}'.format(garbage))
+            raise TypeError("Several data is not recognized in class structure: " "{!r}".format(garbage))
 
         ready_mapping = _prepare_mapping(mapping)
 
         if ready_mapping:
-            meta_dict['_mapping_'] = classdict['_mapping_'] = _make_static_ro_property(
-                'mapping', copy.deepcopy(ready_mapping)
+            meta_dict["_mapping_"] = classdict["_mapping_"] = _make_static_ro_property(
+                "mapping", copy.deepcopy(ready_mapping)
             )
 
             for m_key in ready_mapping:
@@ -388,9 +388,9 @@ class BinFieldMeta(BaseMeta):
                 meta_dict[_py2_str(m_key)] = _make_static_ro_property(m_key, _get_index(ready_mapping[m_key]))
 
         else:
-            meta_dict['_mapping_'] = classdict['_mapping_'] = _make_static_ro_property('mapping', None)
+            meta_dict["_mapping_"] = classdict["_mapping_"] = _make_static_ro_property("mapping", None)
 
-        classdict['_cache_'] = {}  # Use for subclasses memorize
+        classdict["_cache_"] = {}  # Use for subclasses memorize
 
         if BinField not in bases:
             return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
@@ -418,7 +418,7 @@ class BinFieldMeta(BaseMeta):
                     if base is not BinField and issubclass(base, BinField):
                         raise TypeError("Cannot extend BinField")
 
-                sns['__slots__'] = ()  # No any new fields on instances
+                sns["__slots__"] = ()  # No any new fields on instances
 
                 return super(SubMeta, smcs).__new__(smcs, sname, sbases, sns)  # type: ignore
 
@@ -456,16 +456,16 @@ class BinFieldMeta(BaseMeta):
         :type size: int
         :returns: BinField subclass
         """
-        classdict = {'_size_': size, '_mask_': mask, '__slots__': ()}  # type: typing.Dict[str, typing.Any]
+        classdict = {"_size_": size, "_mask_": mask, "__slots__": ()}  # type: typing.Dict[str, typing.Any]
         if mapping is not None:
-            classdict['_mapping_'] = mapping
+            classdict["_mapping_"] = mapping
         # noinspection PyTypeChecker
         return mcs.__new__(mcs, name, (BinField,), classdict)
 
 
 # noinspection PyRedeclaration
 BaseBinFieldMeta = type.__new__(  # type: ignore  # noqa: F811
-    BinFieldMeta, _py2_str('BaseBinFieldMeta'), (object,), {'__slots__': ()}
+    BinFieldMeta, _py2_str("BaseBinFieldMeta"), (object,), {"__slots__": ()}
 )
 
 
@@ -473,7 +473,7 @@ BaseBinFieldMeta = type.__new__(  # type: ignore  # noqa: F811
 class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unused 'BinField'
     """BinField representation."""
 
-    __slots__ = ['__value', '__parent_link']
+    __slots__ = ["__value", "__parent_link"]
 
     # Will be replaced by the same by metaclass, but helps lint
     _cache_ = {}  # type: typing.Dict[typing.Tuple[int, str], BinField]
@@ -683,9 +683,9 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         """
         res = self._value_ + int(other)
         if self._size_ and self._size_ < res.bit_length():
-            raise OverflowError('Result value {} not fill in ' 'data length ({} bits)'.format(res, self._size_))
+            raise OverflowError("Result value {} not fill in " "data length ({} bits)".format(res, self._size_))
         if res < 0:
-            raise ValueError('BinField could not be negative!')
+            raise ValueError("BinField could not be negative!")
         self._value_ = res
         return self
 
@@ -705,7 +705,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         res = self._value_ + int(other)
         if res < 0:
             raise ValueError(
-                'BinField could not be negative! ' 'Value {} is bigger, than {}'.format(other, self._value_)
+                "BinField could not be negative! " "Value {} is bigger, than {}".format(other, self._value_)
             )
         if self._size_ and self._size_ < res.bit_length():
             return res
@@ -800,8 +800,8 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         :raises ValueError: Pickle of linked instance
         """
         if self.__parent_link:
-            raise ValueError('Linked BinFields does not supports pickle')
-        return {'x': self.__value}
+            raise ValueError("Linked BinFields does not supports pickle")
+        return {"x": self.__value}
 
     # PYPY requires this
     def __getnewargs__(self):  # type: () -> typing.Tuple
@@ -864,10 +864,10 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
 
         if item.start:
             if self._size_ and item.start > self._size_:
-                raise IndexError('Index {} is out of data length {}' ''.format(item, self._size_))
+                raise IndexError("Index {} is out of data length {}" "".format(item, self._size_))
 
         if name is None:
-            name = '{cls}_slice_{start!s}_{stop!s}'.format(
+            name = "{cls}_slice_{start!s}_{stop!s}".format(
                 cls=self.__class__.__name__, start=item.start if item.start else 0, stop=item.stop
             )
 
@@ -896,7 +896,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         :raises IndexError: Mapping is not available
         """
         if isinstance(item, int):
-            name = '{cls}_index_{index}'.format(cls=self.__class__.__name__, index=item)
+            name = "{cls}_index_{index}".format(cls=self.__class__.__name__, index=item)
             return self._getslice_(slice(item, item + 1), name=name)
 
         if _is_valid_slice(item):
@@ -905,7 +905,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         if _is_valid_slice_mapping(item):
             return self._getslice_(slice(*item))  # type: ignore
 
-        if not isinstance(item, string_types) or item.startswith('_'):  # type: ignore
+        if not isinstance(item, string_types) or item.startswith("_"):  # type: ignore
             raise IndexError(item)
 
         if self._mapping_ is None:
@@ -920,10 +920,10 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
 
         if isinstance(idx, dict):  # Nested _mapping_
             # Extract slice
-            slc = slice(*idx['_index_'])
+            slc = slice(*idx["_index_"])
             # Build new _mapping_ dict
             mapping = copy.deepcopy(idx)
-            del mapping['_index_']
+            del mapping["_index_"]
             # Get new val
             return self._getslice_(slc, mapping=mapping, name=item)  # type: ignore
 
@@ -941,23 +941,23 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         if key.start is None and key.stop is None:
             if self._size_ and value.bit_length() > self._size_:
                 raise OverflowError(
-                    'Data value to set is bigger, than BinField size: '
-                    '{} > {}'.format(value.bit_length(), self._size_)
+                    "Data value to set is bigger, than BinField size: "
+                    "{} > {}".format(value.bit_length(), self._size_)
                 )
             self._value_ = value
             return
 
         if self._size_ and key.stop and key.stop > self._size_:
-            raise OverflowError('Stop index is out of data length: ' '{} > {}'.format(key.stop, self._size_))
+            raise OverflowError("Stop index is out of data length: " "{} > {}".format(key.stop, self._size_))
 
         stop = key.stop if key.stop else self._bit_size_
         start = key.start if key.start else 0
 
         if value.bit_length() > stop:
-            raise ValueError('Data size is bigger, than slice')
+            raise ValueError("Data size is bigger, than slice")
         if key.start:
             if value.bit_length() > stop - start:
-                raise ValueError('Data size is bigger, than slice')
+                raise ValueError("Data size is bigger, than slice")
 
         value <<= start  # Get correct binary position
 
@@ -978,7 +978,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         :raises IndexError: key not found (or key is not string, no mapping)
         """
         if not isinstance(value, int):
-            raise TypeError('BinField value could be set only as int')
+            raise TypeError("BinField value could be set only as int")
 
         if isinstance(key, int):
             return self._setslice_(slice(key, key + 1), value)
@@ -1001,9 +1001,9 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         if isinstance(idx, (int, slice)):
             return self.__setitem__(idx, value)
 
-        if isinstance(idx, dict) and _is_valid_slice_mapping(idx['_index_']):  # Nested _mapping_
+        if isinstance(idx, dict) and _is_valid_slice_mapping(idx["_index_"]):  # Nested _mapping_
             # Extract slice from nested
-            return self._setslice_(slice(*idx['_index_']), value)
+            return self._setslice_(slice(*idx["_index_"]), value)
 
         raise IndexError(key)
 
@@ -1027,12 +1027,12 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
         """Real __repr__ code."""
         indent = 0 if no_indent_start else indent
         if self.__parent_link:
-            pre = '<'
-            post = ' at 0x{:X}>'.format(id(self))
+            pre = "<"
+            post = " at 0x{:X}>".format(id(self))
         else:
-            pre = post = ''
-        return '{spc:<{indent}}{pre}{cls}(x=0x{x:0{len}X}, base=16){post}'.format(
-            spc='', indent=indent, pre=pre, cls=self.__class__.__name__, x=self._value_, len=len(self) * 2, post=post
+            pre = post = ""
+        return "{spc:<{indent}}{pre}{cls}(x=0x{x:0{len}X}, base=16){post}".format(
+            spc="", indent=indent, pre=pre, cls=self.__class__.__name__, x=self._value_, len=len(self) * 2, post=post
         )
 
     def __repr__(self):  # type: () -> str
@@ -1047,7 +1047,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # noqa  # redefinition of unu
             # pylint: enable=no-member
         else:
             keys = []
-        return ['_bit_size_', '_mapping_', '_mask_', '_value_', '_size_'] + keys
+        return ["_bit_size_", "_mapping_", "_mask_", "_value_", "_size_"] + keys
 
 
 class _Formatter(object):
@@ -1105,7 +1105,7 @@ class _Formatter(object):
         max_len = max([len(str(key)) for key in src]) if src else 0
         for key, val in src.items():
             yield "\n{spc:<{indent}}{key!s:{size}} = {val}".format(
-                spc='',
+                spc="",
                 indent=self.next_indent(indent),
                 size=max_len,
                 key=key,
@@ -1128,13 +1128,13 @@ class _Formatter(object):
         :rtype: str
         """
         if src._mask_ is None:
-            mask = ''
+            mask = ""
         else:
-            mask = ' & 0b{:b}'.format(src._mask_)
+            mask = " & 0b{:b}".format(src._mask_)
 
         if src._mapping_ and indent < self.max_indent:
             as_dict = collections.OrderedDict(((key, src[key]) for key in src._mapping_))
-            result = ''.join(self._str_bf_items(src=as_dict, indent=indent))
+            result = "".join(self._str_bf_items(src=as_dict, indent=indent))
 
             return (
                 "{nl}"
@@ -1144,8 +1144,8 @@ class _Formatter(object):
                 "(0b{data:0{bit_length}b}{mask})"
                 "{result}\n"
                 "{spc:<{indent}}>".format(
-                    nl='\n' if no_indent_start else '',
-                    spc='',
+                    nl="\n" if no_indent_start else "",
+                    spc="",
                     indent=indent,
                     data=src._value_,
                     length=len(src) * 2,
@@ -1157,9 +1157,9 @@ class _Formatter(object):
 
         indent = 0 if no_indent_start else indent
         return (
-            '{spc:<{indent}}'
-            '<{data} == 0x{data:0{length}X} == (0b{data:0{blength}b}{mask})>'
-            ''.format(spc='', indent=indent, data=src._value_, length=len(src) * 2, blength=src._bit_size_, mask=mask)
+            "{spc:<{indent}}"
+            "<{data} == 0x{data:0{length}X} == (0b{data:0{blength}b}{mask})>"
+            "".format(spc="", indent=indent, data=src._value_, length=len(src) * 2, blength=src._bit_size_, mask=mask)
         )
 
     def __call__(self, src, indent=0, no_indent_start=False):  # type: (BinField, int, bool) -> str
@@ -1175,5 +1175,5 @@ class _Formatter(object):
         """
         result = self.process_element(src, indent=indent, no_indent_start=no_indent_start)
         if self.__py2_str:  # pragma: no cover
-            return result.encode(encoding='utf-8', errors='backslashreplace')  # type: ignore
+            return result.encode(encoding="utf-8", errors="backslashreplace")  # type: ignore
         return result
