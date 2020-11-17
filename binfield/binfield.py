@@ -1,4 +1,4 @@
-#    Copyright 2016 - 2017 Alexey Stepanov aka penguinolog
+#    Copyright 2016 - 2020 Alexey Stepanov aka penguinolog
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -11,8 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# cython: binding=True, embedsignature=True
-
 """BinField module.
 
 Implements BinField in Python
@@ -24,10 +22,10 @@ import typing
 
 __all__ = ("BinField",)
 
+KeyT = typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
+IndexT = typing.Union[int, slice, typing.Iterable[int], typing.Dict[str, typing.Tuple[int, int]]]
 ResolvedMappingT = typing.Dict[str, typing.Union[slice, int, typing.Dict[str, typing.Any]]]
-AllowedMappingT = typing.Optional[
-    typing.Dict[str, typing.Union[slice, int, typing.Tuple[int, int], typing.List[int], typing.Dict[str, typing.Any]]]
-]
+AllowedMappingT = typing.Optional[typing.Dict[str, typing.Union[IndexT, typing.Dict[str, typing.Any]]]]
 
 
 def _is_descriptor(obj: typing.Any) -> bool:
@@ -72,40 +70,38 @@ def _is_valid_slice_mapping(obj: typing.Union[typing.List[int], typing.Tuple[int
     )
 
 
-def _mapping_filter(item: typing.Tuple[str, typing.Any]) -> bool:
+def _mapping_filter(key: str, val: typing.Any) -> bool:
     """Filter for naming records from namespace.
 
-    :param item: namespace item
-    :type item: tuple
+    :param key: namespace key
+    :type key: str
+    :param val: nespace value
+    :type val: typing.Any
     :rtype: bool
     """
-    name, obj = item
-
-    if not isinstance(name, str):
+    if not isinstance(key, str):
         return False
 
-    if name in {"_index_"}:
+    if key in {"_index_"}:
         return True
 
     # Descriptors, special methods, protected
-    if _is_descriptor(obj) or _is_dunder(name) or name.startswith("_"):
+    if _is_descriptor(val) or _is_dunder(key) or key.startswith("_"):
         return False
 
     # Index / slice / slice from iterable
-    if isinstance(obj, int) or _is_valid_slice(obj) or _is_valid_slice_mapping(obj):
+    if isinstance(val, int) or _is_valid_slice(val) or _is_valid_slice_mapping(val):
         return True
 
     # Not nested
-    if not isinstance(obj, dict):
+    if not isinstance(val, dict):
         return False
 
     # Process nested
-    return all((_mapping_filter(value) for value in obj.items()))
+    return all((_mapping_filter(k, v) for k, v in val.items()))
 
 
-def _get_index(
-    val: typing.Union[int, slice, typing.Iterable[int], typing.Dict[str, typing.Any]]
-) -> typing.Union[int, slice]:
+def _get_index(val: IndexT) -> typing.Union[int, slice]:
     """Extract real index from index."""
     if isinstance(val, int) or _is_valid_slice(val):
         return val  # type: ignore
@@ -126,9 +122,7 @@ def _get_mask(start: int, end: int) -> int:
     return (1 << end) - (1 << start)
 
 
-def _get_start_index(
-    src: typing.Tuple[typing.Any, typing.Union[int, slice, typing.Iterable[int], typing.Dict[str, typing.Any]]]
-) -> int:
+def _get_start_index(src: typing.Tuple[typing.Any, IndexT]) -> int:
     """Internal method for sorting mapping.
 
     :param src: tuple from dict.items()
@@ -140,11 +134,7 @@ def _get_start_index(
     return _get_index(src[1]).start  # type: ignore
 
 
-def _prepare_mapping(
-    mapping: typing.Dict[
-        str, typing.Union[slice, int, typing.Tuple[int, int], typing.List[int], typing.Dict[str, typing.Any]]
-    ]
-) -> ResolvedMappingT:
+def _prepare_mapping(mapping: typing.Dict[str, typing.Union[IndexT, typing.Dict[str, typing.Any]]]) -> ResolvedMappingT:
     """Check indexes for intersections.
 
     :type mapping: typing.Dict
@@ -173,7 +163,7 @@ def _prepare_mapping(
     if "_index_" in mapping:
         new_mapping["_index_"] = mapping.pop("_index_")  # type: ignore
 
-    unexpected = [item for item in mapping.items() if not _mapping_filter(item)]
+    unexpected = [item for item in mapping.items() if not _mapping_filter(*item)]
 
     if unexpected:
         raise ValueError(f"Mapping contains unexpected data: {unexpected!r}")
@@ -235,6 +225,8 @@ def _make_static_ro_property(name: str, val: typing.Any) -> property:
 
 class BaseBinFieldMeta:  # pragma: no cover
     """Fake class for BinFieldMeta compilation and class instance creation."""
+
+    __slots__ = ()
 
 
 class BinField(typing.MutableMapping[str, typing.Any]):  # pragma: no cover
@@ -332,7 +324,6 @@ class BinFieldMeta(BaseMeta):
                 size = mask.bit_length()
 
         meta_dict["_size_"] = classdict["_size_"] = _make_static_ro_property("size", size)
-
         meta_dict["_mask_"] = classdict["_mask_"] = _make_static_ro_property("mask", mask)
 
         mapping = classdict.pop("_mapping_", None)
@@ -340,7 +331,9 @@ class BinFieldMeta(BaseMeta):
         if mapping is None:
             mapping = {}
 
-            for m_key, m_val in filter(_mapping_filter, classdict.copy().items()):
+            for m_key, m_val in classdict.copy().items():
+                if not _mapping_filter(m_key, m_val):
+                    continue
                 if isinstance(m_val, (list, tuple)):
                     mapping[m_key] = slice(*m_val)  # Mapped slice -> slice
                 else:
@@ -373,10 +366,10 @@ class BinFieldMeta(BaseMeta):
         classdict["_cache_"] = {}  # Use for subclasses memorize
 
         if BinField not in bases:
-            return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
+            return super().__new__(mcs, name, bases, classdict)
 
         # noinspection PyPep8Naming
-        RealMeta = type(meta_name, (type,), meta_dict)  # noqa:N806  # pylint: disable=invalid-name
+        RealMeta = type(meta_name, (type,), meta_dict)  # noqa:N806  # pylint: disable=invalid-name  # NOSONAR
 
         # pylint: disable=bad-mcs-classmethod-argument
         class SubMeta(RealMeta, BinFieldMeta):  # type: ignore
@@ -389,7 +382,7 @@ class BinFieldMeta(BaseMeta):
 
             # noinspection PyMethodParameters,PyInitNewSignature
             def __new__(
-                smcs,  # noqa:N804
+                smcs,  # noqa:N804  # NOSONAR
                 sname: str,
                 sbases: typing.Tuple[type],
                 sns: typing.Dict[str, typing.Any],
@@ -435,7 +428,7 @@ class BinFieldMeta(BaseMeta):
 
 # noinspection PyRedeclaration
 BaseBinFieldMeta = type.__new__(  # type: ignore  # noqa: F811
-    BinFieldMeta, "BaseBinFieldMeta", (object,), {"__slots__": ()}
+    BinFieldMeta, "BaseBinFieldMeta", (), {"__slots__": ()}
 )
 
 
@@ -822,9 +815,9 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # pylint: disable=function-re
 
         # Memorize
         cls = self._get_child_cls_(mask=mask, name=name, cls_mask=cls_mask, size=stop - start, mapping=mapping)
-        return cls((self._value_ & mask) >> start, _parent=(self, start))  #type: ignore
+        return cls((self._value_ & mask) >> start, _parent=(self, start))  # type: ignore
 
-    def __getitem__(self, item: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]) -> BinField:
+    def __getitem__(self, item: KeyT) -> BinField:
         """Extract bits.
 
         :type item: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
@@ -901,9 +894,7 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # pylint: disable=function-re
 
         self._value_ = self._value_ & ~get_mask | value
 
-    def __setitem__(
-        self, key: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]], value: int
-    ) -> None:
+    def __setitem__(self, key: KeyT, value: int) -> None:
         """Indexed setter.
 
         :type key: typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int, int]]
