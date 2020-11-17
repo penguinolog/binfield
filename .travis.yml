@@ -3,23 +3,11 @@ language: python
 os: linux
 install:
 - &upgrade_python_toolset pip install --upgrade pip setuptools wheel
-- &install_test_deps pip install --upgrade pytest pytest-sugar
+- &install_test_deps pip install --upgrade -r pytest_requirements.txt
 - &install_deps pip install -r requirements.txt
 - pip install --upgrade pytest-cov coveralls
 
 _python:
-- &python27
-  name: "Python 2.7"
-  python: 2.7
-- &python34
-  name: "Python 3.4"
-  python: 3.4
-- &python35
-  name: "Python 3.5"
-  python: 3.5
-- &python36
-  name: "Python 3.6"
-  python: 3.6
 - &python37
   name: "Python 3.7"
   python: 3.7
@@ -30,26 +18,11 @@ _python:
   python: pypy
 - &pypy3
   name: "PyPy3"
-  python: pypy3.5
+  python: pypy3
 
 _helpers:
-- &install_cython pip install --upgrade Cython
 - &build_package python setup.py bdist_wheel
-- &install_built pip install binfield --no-index -f dist
-- &test_no_cov  py.test -vv test
-- &test_cythonized
-  stage: Test cythonized
-  install:
-  - *upgrade_python_toolset
-  - *install_test_deps
-  - *install_deps
-  - *install_cython
-  script:
-  - *build_package
-  - *install_built
-  - *test_no_cov
-  after_success: skip
-  
+
 - &static_analysis
   stage: Static analysis
   <<: *python37
@@ -71,12 +44,11 @@ jobs:
   fast_finish: true
   include:
   - <<: *static_analysis
-    <<: *python36
     name: "PyLint"
     install:
     - *upgrade_python_toolset
     - *install_deps
-    - pip install --upgrade "pylint < 2.0"
+    - pip install --upgrade pylint
     script:
     - pylint binfield
   - <<: *static_analysis
@@ -118,28 +90,11 @@ jobs:
     - black --check binfield
 
   - stage: test
-    <<: *python27
-  - stage: test
-    <<: *python34
-  - stage: test
-    <<: *python35
-  - stage: test
-    <<: *python36
-  - stage: test
     <<: *python37
   - stage: test
     <<: *pypy
   - stage: test
     <<: *pypy3
-
-  - <<: *test_cythonized
-    <<: *python34
-  - <<: *test_cythonized
-    <<: *python35
-  - <<: *test_cythonized
-    <<: *python36
-  - <<: *test_cythonized
-    <<: *python37
 
   - stage: deploy
     # This prevents job from appearing in test plan unless commit is tagged:

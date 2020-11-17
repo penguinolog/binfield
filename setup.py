@@ -13,119 +13,44 @@
 
 """Python BinField implementation"""
 
-from __future__ import print_function
-
+# Standard Library
 import ast
-import collections
-from distutils.command import build_ext
-import distutils.errors
 import os.path
-import shutil
 import sys
 
-try:
-    from Cython.Build import cythonize
-except ImportError:
-    cythonize = None
-
+# External Dependencies
 import setuptools
-
-PY3 = sys.version_info[:2] > (2, 7)
-
-with open(
-    os.path.join(
-        os.path.dirname(__file__),
-        'binfield', '__init__.py'
-    )
-) as f:
-    source = f.read()
-
-with open('requirements.txt') as f:
-    required = f.read().splitlines()
-
-with open('README.rst',) as f:
-    long_description = f.read()
+import typing
 
 
-def _extension(modpath):
-    """Make setuptools.Extension."""
-    return setuptools.Extension(modpath, [modpath.replace('.', '/') + '.py'])
+PACKAGE_NAME = "binfield"
 
+with open(os.path.join(os.path.dirname(__file__), PACKAGE_NAME, "__init__.py")) as f:
+    SOURCE = f.read()
 
-requires_optimization = [
-    _extension('binfield.binfield'),
-    _extension('binfield.__init__'),
-]
+with open("requirements.txt") as f:
+    REQUIRED = f.read().splitlines()
 
-ext_modules = cythonize(
-    requires_optimization,
-    compiler_directives=dict(
-        always_allow_keywords=True,
-        binding=True,
-        embedsignature=True,
-        overflowcheck=True,
-    )
-) if cythonize is not None else ()
-
-
-class BuildFailed(Exception):
-    """For install clear scripts."""
-    pass
-
-
-class AllowFailRepair(build_ext.build_ext):
-    """This class allows C extension building to fail and repairs init."""
-
-    def run(self):
-        """Run."""
-        try:
-            build_ext.build_ext.run(self)
-
-            # Copy __init__.py back to repair package.
-            build_dir = os.path.abspath(self.build_lib)
-            root_dir = os.path.abspath(os.path.join(__file__, '..'))
-            target_dir = build_dir if not self.inplace else root_dir
-
-            src_file = os.path.join('binfield', '__init__.py')
-
-            src = os.path.join(root_dir, src_file)
-            dst = os.path.join(target_dir, src_file)
-
-            if src != dst:
-                shutil.copyfile(src, dst)
-        except (
-            distutils.errors.DistutilsPlatformError,
-            FileNotFoundError
-        ):
-            raise BuildFailed()
-
-    def build_extension(self, ext):
-        """build_extension."""
-        try:
-            build_ext.build_ext.build_extension(self, ext)
-        except (
-            distutils.errors.CCompilerError,
-            distutils.errors.DistutilsExecError,
-            distutils.errors.DistutilsPlatformError,
-            ValueError
-        ):
-            raise BuildFailed()
+with open("README.rst") as f:
+    LONG_DESCRIPTION = f.read()
 
 
 # noinspection PyUnresolvedReferences
-def get_simple_vars_from_src(src):
+def get_simple_vars_from_src(
+    src: str,
+) -> "typing.Dict[str, typing.Union[str, bytes, int, float, complex, list, set, dict, tuple, None, bool, Ellipsis]]":
     """Get simple (string/number/boolean and None) assigned values from source.
 
     :param src: Source code
     :type src: str
-    :returns: OrderedDict with keys, values = variable names, values
+    :return: OrderedDict with keys, values = variable names, values
     :rtype: typing.Dict[
                 str,
                 typing.Union[
                     str, bytes,
                     int, float, complex,
                     list, set, dict, tuple,
-                    None,
+                    None, bool, Ellipsis
                 ]
             ]
 
@@ -135,107 +60,82 @@ def get_simple_vars_from_src(src):
         * Executable code, including string formatting and comprehensions.
 
     Examples:
-
     >>> string_sample = "a = '1'"
     >>> get_simple_vars_from_src(string_sample)
-    OrderedDict([('a', '1')])
+    {'a': '1'}
 
     >>> int_sample = "b = 1"
     >>> get_simple_vars_from_src(int_sample)
-    OrderedDict([('b', 1)])
+    {'b': 1}
 
     >>> list_sample = "c = [u'1', b'1', 1, 1.0, 1j, None]"
     >>> result = get_simple_vars_from_src(list_sample)
-    >>> result == collections.OrderedDict(
-    ...     [('c', [u'1', b'1', 1, 1.0, 1j, None])]
-    ... )
+    >>> result == {'c': [u'1', b'1', 1, 1.0, 1j, None]}
     True
 
     >>> iterable_sample = "d = ([1], {1: 1}, {1})"
     >>> get_simple_vars_from_src(iterable_sample)
-    OrderedDict([('d', ([1], {1: 1}, {1}))])
+    {'d': ([1], {1: 1}, {1})}
 
     >>> multiple_assign = "e = f = g = 1"
     >>> get_simple_vars_from_src(multiple_assign)
-    OrderedDict([('e', 1), ('f', 1), ('g', 1)])
+    {'e': 1, 'f': 1, 'g': 1}
     """
-    ast_data = (
-        ast.Str, ast.Num,
-        ast.List, ast.Set, ast.Dict, ast.Tuple
-    )
-    if PY3:
-        ast_data += (ast.Bytes, ast.NameConstant,)
+    if sys.version_info[:2] < (3, 8):
+        ast_data = (ast.Str, ast.Num, ast.List, ast.Set, ast.Dict, ast.Tuple, ast.Bytes, ast.NameConstant, ast.Ellipsis)
+    else:
+        ast_data = (ast.Constant, ast.List, ast.Set, ast.Dict, ast.Tuple)
 
     tree = ast.parse(src)
 
-    result = collections.OrderedDict()
+    result = {}
 
     for node in ast.iter_child_nodes(tree):
-        if not isinstance(node, ast.Assign):  # We parse assigns only
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast_data):  # We parse assigns only
             continue
         try:
-            if isinstance(node.value, ast_data):
-                value = ast.literal_eval(node.value)
-            elif isinstance(  # NameConstant in python < 3.4
-                node.value, ast.Name
-            ) and isinstance(
-                node.value.ctx, ast.Load  # Read constant
-            ):
-                value = ast.literal_eval(node.value)
-            else:
-                continue
+            value = ast.literal_eval(node.value)
         except ValueError:
             continue
         for tgt in node.targets:
-            if isinstance(
-                tgt, ast.Name
-            ) and isinstance(
-                tgt.ctx, ast.Store
-            ):
+            if isinstance(tgt, ast.Name) and isinstance(tgt.ctx, ast.Store):
                 result[tgt.id] = value
     return result
 
 
-variables = get_simple_vars_from_src(source)
+VARIABLES = get_simple_vars_from_src(SOURCE)
 
-classifiers = [
-    'Development Status :: 4 - Beta',
-
-    'Intended Audience :: Developers',
-    'Topic :: Software Development :: Libraries :: Python Modules',
-
-    'License :: OSI Approved :: Apache Software License',
-
-    'Programming Language :: Python :: 2',
-    'Programming Language :: Python :: 2.7',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.4',
-    'Programming Language :: Python :: 3.5',
-    'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7',
-
-    'Programming Language :: Python :: Implementation :: CPython',
-    'Programming Language :: Python :: Implementation :: PyPy',
+CLASSIFIERS = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-keywords = [
-    'binary',
-    'binfield',
-    'development',
+KEYWORDS = [
+    "binary",
+    "binfield",
+    "development",
 ]
 
-setup_args = dict(
-    name='BinField',
-    author=variables['__author__'],
-    author_email=variables['__author_email__'],
-    url=variables['__url__'],
-    version=variables['__version__'],
-    license=variables['__license__'],
-    description=variables['__description__'],
-    long_description=long_description,
-    classifiers=classifiers,
-    keywords=keywords,
-    python_requires='>=2.7.5,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+SETUP_ARGS: typing.Dict[str, typing.Union[str, typing.List[str], typing.Dict[str, typing.List[str]]]] = dict(
+    name="BinField",
+    author=VARIABLES["__author__"],
+    author_email=VARIABLES["__author_email__"],
+    url=VARIABLES["__url__"],
+    version=VARIABLES["__version__"],
+    license=VARIABLES["__license__"],
+    description=VARIABLES["__description__"],
+    long_description=LONG_DESCRIPTION,
+    classifiers=CLASSIFIERS,
+    keywords=KEYWORDS,
+    python_requires=">=3.7.0",
     # While setuptools cannot deal with pre-installed incompatible versions,
     # setting a lower bound is not harmful - it makes error messages cleaner. DO
     # NOT set an upper bound on setuptools, as that will lead to uninstallable
@@ -243,26 +143,9 @@ setup_args = dict(
     # Blacklist setuptools 34.0.0-34.3.2 due to https://github.com/pypa/setuptools/issues/951
     # Blacklist setuptools 36.2.0 due to https://github.com/pypa/setuptools/issues/1086
     setup_requires="setuptools >= 21.0.0,!=24.0.0,"
-                   "!=34.0.0,!=34.0.1,!=34.0.2,!=34.0.3,!=34.1.0,!=34.1.1,!=34.2.0,!=34.3.0,!=34.3.1,!=34.3.2,"
-                   "!=36.2.0",
-    install_requires=required,
-    package_data={
-        'binfield': ['py.typed'],
-    },
+    "!=34.0.0,!=34.0.1,!=34.0.2,!=34.0.3,!=34.1.0,!=34.1.1,!=34.2.0,!=34.3.0,!=34.3.1,!=34.3.2,"
+    "!=36.2.0",
+    install_requires=REQUIRED,
+    package_data={PACKAGE_NAME: ["py.typed"]},
 )
-if cythonize is not None:
-    setup_args['ext_modules'] = ext_modules
-    setup_args['cmdclass'] = dict(build_ext=AllowFailRepair)
-
-try:
-    setuptools.setup(**setup_args)
-except BuildFailed:
-    print(
-        '*' * 80 + '\n'
-        '* Build Failed!\n'
-        '* Use clear scripts version.\n'
-        '*' * 80 + '\n'
-    )
-    del setup_args['ext_modules']
-    del setup_args['cmdclass']
-    setuptools.setup(**setup_args)
+setuptools.setup(**SETUP_ARGS)
