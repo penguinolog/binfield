@@ -16,6 +16,8 @@
 Implements BinField in Python
 """
 
+from __future__ import annotations
+
 import copy
 import math
 import typing
@@ -94,7 +96,7 @@ def _mapping_filter(key: str, val: typing.Any) -> bool:
 
     :param key: namespace key
     :type key: str
-    :param val: nespace value
+    :param val: namespace value
     :type val: typing.Any
     :rtype: bool
     """
@@ -405,7 +407,7 @@ class BinFieldMeta(BaseMeta):
                 sname: str,
                 sbases: typing.Tuple[type],
                 sns: typing.Dict[str, typing.Any],
-            ) -> "SubMeta":
+            ) -> SubMeta:
                 for base in sbases:
                     if base is not BinField and issubclass(base, BinField):
                         raise TypeError("Cannot extend BinField")

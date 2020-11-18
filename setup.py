@@ -37,7 +37,7 @@ with open("README.rst") as f:
 
 # noinspection PyUnresolvedReferences
 def get_simple_vars_from_src(
-    src: str,
+    src: str
 ) -> "typing.Dict[str, typing.Union[str, bytes, int, float, complex, list, set, dict, tuple, None, bool, Ellipsis]]":
     """Get simple (string/number/boolean and None) assigned values from source.
 
@@ -121,10 +121,10 @@ CLASSIFIERS = [
 KEYWORDS = [
     "binary",
     "binfield",
-    "development",
+    "development"
 ]
 
-SETUP_ARGS: typing.Dict[str, typing.Union[str, typing.List[str], typing.Dict[str, typing.List[str]]]] = dict(
+setuptools.setup(
     name="BinField",
     author=VARIABLES["__author__"],
     author_email=VARIABLES["__author_email__"],
@@ -133,6 +133,7 @@ SETUP_ARGS: typing.Dict[str, typing.Union[str, typing.List[str], typing.Dict[str
     license=VARIABLES["__license__"],
     description=VARIABLES["__description__"],
     long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/x-rst",
     classifiers=CLASSIFIERS,
     keywords=KEYWORDS,
     python_requires=">=3.7.0",
@@ -148,4 +149,3 @@ SETUP_ARGS: typing.Dict[str, typing.Union[str, typing.List[str], typing.Dict[str
     install_requires=REQUIRED,
     package_data={PACKAGE_NAME: ["py.typed"]},
 )
-setuptools.setup(**SETUP_ARGS)
