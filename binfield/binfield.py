@@ -452,7 +452,7 @@ BaseBinFieldMeta = type.__new__(BinFieldMeta, "BaseBinFieldMeta", (), {"__slots_
 
 
 # noinspection PyRedeclaration,PyMissingConstructor
-class BinField(BaseBinFieldMeta):  # type: ignore  # pylint: disable=function-redefined
+class BinField(BaseBinFieldMeta):  # type: ignore  # noqa: F811  # pylint: disable=function-redefined
     """BinField representation."""
 
     __slots__ = ["__value", "__parent_link"]
