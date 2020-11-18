@@ -13,9 +13,6 @@ _python:
   python: 3.7
   dist: xenial
   sudo: true
-- &pypy
-  name: "PyPy"
-  python: pypy
 - &pypy3
   name: "PyPy3"
   python: pypy3
@@ -91,8 +88,6 @@ jobs:
 
   - stage: test
     <<: *python37
-  - stage: test
-    <<: *pypy
   - stage: test
     <<: *pypy3
 

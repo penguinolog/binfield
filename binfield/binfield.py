@@ -24,8 +24,27 @@ __all__ = ("BinField",)
 
 KeyT = typing.Union[str, int, slice, typing.Tuple[int, int], typing.List[int]]
 IndexT = typing.Union[int, slice, typing.Iterable[int], typing.Dict[str, typing.Tuple[int, int]]]
-ResolvedMappingT = typing.Dict[str, typing.Union[slice, int, typing.Dict[str, typing.Any]]]
-AllowedMappingT = typing.Optional[typing.Dict[str, typing.Union[IndexT, typing.Dict[str, typing.Any]]]]
+ResolvedMappingT = typing.Dict[
+    str,
+    typing.Union[int, slice, typing.Dict[str, typing.Any]],
+]
+DeclaredMappingT = typing.Dict[
+    str,
+    typing.Union[int, slice, typing.Tuple[int, int], typing.List[int], typing.Dict[str, typing.Any]],
+]
+
+AllowedMappingT = typing.Optional[DeclaredMappingT]
+
+# Resolve mapping
+# _size_ : int -> _size_ + _mask_
+# _mask_ : int -> _mask_ + _size_
+# _index_ -> only for nested structures
+#
+# Values
+# slice -> slice
+# tuple(int, int) -> slice
+# list(int, int) -> slice
+# int -> int
 
 
 def _is_descriptor(obj: typing.Any) -> bool:
@@ -134,7 +153,7 @@ def _get_start_index(src: typing.Tuple[typing.Any, IndexT]) -> int:
     return _get_index(src[1]).start  # type: ignore
 
 
-def _prepare_mapping(mapping: typing.Dict[str, typing.Union[IndexT, typing.Dict[str, typing.Any]]]) -> ResolvedMappingT:
+def _prepare_mapping(mapping: DeclaredMappingT) -> ResolvedMappingT:
     """Check indexes for intersections.
 
     :type mapping: typing.Dict
@@ -291,7 +310,7 @@ class BinFieldMeta(BaseMeta):
             # Top level baseclass: cleanup
             for key in "_value_", "_size_", "_mask_", "_mapping_":  # pragma: no cover
                 classdict.pop(key, None)
-            return super(BinFieldMeta, mcs).__new__(mcs, name, bases, classdict)
+            return super().__new__(mcs, name, bases, classdict)
 
         meta_dict = {}
         meta_name = f"{name}Meta"
@@ -393,7 +412,7 @@ class BinFieldMeta(BaseMeta):
 
                 sns["__slots__"] = ()  # No any new fields on instances
 
-                return super(SubMeta, smcs).__new__(smcs, sname, sbases, sns)  # type: ignore
+                return super().__new__(smcs, sname, sbases, sns)  # type: ignore
 
         # pylint: enable=bad-mcs-classmethod-argument
 
@@ -427,9 +446,7 @@ class BinFieldMeta(BaseMeta):
 
 
 # noinspection PyRedeclaration
-BaseBinFieldMeta = type.__new__(  # type: ignore  # noqa: F811
-    BinFieldMeta, "BaseBinFieldMeta", (), {"__slots__": ()}
-)
+BaseBinFieldMeta = type.__new__(BinFieldMeta, "BaseBinFieldMeta", (), {"__slots__": ()})  # type: ignore  # noqa: F811
 
 
 # noinspection PyRedeclaration,PyMissingConstructor
@@ -851,10 +868,10 @@ class BinField(BaseBinFieldMeta):  # type: ignore  # pylint: disable=function-re
             # Extract slice
             slc = slice(*idx["_index_"])
             # Build new _mapping_ dict
-            mapping = copy.deepcopy(idx)
+            mapping: ResolvedMappingT = copy.deepcopy(idx)
             del mapping["_index_"]
             # Get new val
-            return self._getslice_(slc, mapping=mapping, name=item)
+            return self._getslice_(slc, mapping=mapping, name=item)  # type: ignore
 
         raise IndexError(item)
 
