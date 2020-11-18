@@ -407,7 +407,7 @@ class BinFieldMeta(BaseMeta):
                 sname: str,
                 sbases: typing.Tuple[type],
                 sns: typing.Dict[str, typing.Any],
-            ) -> SubMeta:
+            ) -> SubMeta:  # pylint: disable=undefined-variable
                 for base in sbases:
                     if base is not BinField and issubclass(base, BinField):
                         raise TypeError("Cannot extend BinField")
